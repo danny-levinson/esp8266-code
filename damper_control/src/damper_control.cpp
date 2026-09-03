@@ -2,7 +2,6 @@
  * Created in Sloeber, 2021-10-08 by Danny Levinson
  */
 
-// Do not remove the include below
 #include "damper_control.h"
 
 #include "StandardHelpers.h"
