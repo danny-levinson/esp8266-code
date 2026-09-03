@@ -1,0 +1,50 @@
+# ============================
+#   SLOEBER / ECLIPSE
+# ============================
+.settings/
+.sloeber.tmp/
+.prefs/
+.metadata/
+*.launch
+
+# ============================
+#   BUILD OUTPUT
+# ============================
+Release/
+Debug/
+.build/
+arduinoPlugin/
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+
+# ============================
+#   ESP8266 TOOLCHAIN
+# ============================
+core/
+libraries/ESP8266WiFi/.cache/
+libraries/.cache/
+
+# ============================
+#   ARDUINO INDEXER NOISE
+# ============================
+*.gch
+*.lst
+*.s
+
+# ============================
+#   OS / EDITOR NOISE
+# ============================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ============================
+#   LOGS / TEMP
+# ============================
+*.log
+*.tmp

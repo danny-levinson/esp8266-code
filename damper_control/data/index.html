@@ -1,0 +1,301 @@
+<!-- index.html, Created on: Sep. 18, 2019, Author: Danny -->
+<!DOCTYPE HTML>
+<html lang="">
+<head profile="http://www.w3.org/2005/10/profile">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <title>Damper Controller</title>
+
+  <!-- CSS -->
+<!-- local versions - not used for now
+  <link rel="stylesheet" type="text/css" href="jquery-ui.min.css">
+-->
+
+  <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.min.css">
+  <link rel="stylesheet" type="text/css" href="jquery-ui.structure.min.css">
+  <link rel="stylesheet" type="text/css" href="jquery-ui.theme.min.css">
+  
+<!--  
+  -- only useful for testing stuff out
+  <link rel="stylesheet" type="text/css" href="https://jqueryui.com/resources/demos/style.css">
+-->
+
+  <!-- switcher code from https://www.jqueryscript.net/form/ON-OFF-Toggle-Switches-Switcher.html -->
+  <link rel="stylesheet" type="text/css" href="switcher.css">
+  
+  <!-- JS -->
+  <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+  <script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<!--
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+-->
+<!--
+  <script src="jquery-ui.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+	        integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+	        crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+  <script type="text/javascript" src="https://jqueryui.com/resources/demos/external/jquery-mousewheel/jquery.mousewheel.js"></script>
+  <script type="text/javascript" src="jquery.js"></script>
+  <script type="text/javascript" src="jquery-ui.js"></script>
+-->
+  <script type="text/javascript" src="switcher.js"></script>
+
+  <!-- for tooltips, so they don't come out as a single line -->  
+  <style>
+    label {
+		display: inline-block;
+<!-- 
+		width: 5em;
+ -->
+	}
+  </style>
+<script>
+  function websend(s) {
+	  console.log(s);
+	  webSocket.send(s);
+  }
+  $( function() {
+    $( "#tzone" ).spinner({min:-12, max:12});
+    $( "#offset" ).spinner({min:-10, max:10});
+    $( "#dst" ).checkboxradio();
+
+    $( '#manualactive' ).click (function() { websend('/activatemanual') });
+    $( '#autoactive' ).click (function() { websend('/activateauto') });
+    $( '#opendamper' ).click (function() { websend('/opendamper') });
+    $( '#closedamper' ).click (function() { websend('/closedamper') });
+    
+    $( '.ui-spinner-input' ).on ("change paste keyup blur", ( function(event) {
+        //console.log( "event object:" );
+        //console.log( event.currentTarget.id);
+        //console.dir( event );
+    	var v = $(this).spinner("value");
+        if (v != this.oldval) {
+        	this.oldval = v;
+        	websend('/change?n='+event.currentTarget.id+'&v='+v);
+        }
+      }));
+    $( ":checkbox" ).on ("change paste keyup blur", ( function(event) {
+    	var v = $(this).is(":checked");
+        if (v != this.oldval) {
+        	this.oldval = v;
+        	websend('/change?n='+event.currentTarget.id+'&v='+v);
+        }
+      }));
+    $( ":radio" ).on ("change paste keyup blur", ( function(event) {
+    	//console.dir($(this));
+    	var rsetname = $(this)[0].name;
+    	var rset = $("#"+rsetname);
+    	var selname = $("input[name="+rsetname+"]:checked").val()
+       	var v = $(this).is(":checked");			// always true!
+        if (selname != rset.oldval) {
+        	rset.oldval = selname;
+       		websend('/change?n='+event.currentTarget.id+'&v='+v+"&t=radio");
+        }
+      }));
+    // for some reason we don't seem to able to use $("dpattern" "pattern") here.
+    $( "#dpattern" ).on ("selectmenuchange", ( function(event) {
+        //console.log( "event object: "+ event.currentTarget.id +" <= " +event.currentTarget.value);
+        //console.dir( event );
+    	var v = event.currentTarget.value;
+        if (v != this.oldval) {
+        	this.oldval = v;
+        	websend('/change?n='+event.currentTarget.id+'&v='+v);
+        }
+      }));
+    $( "#pattern" ).on ("selectmenuchange", ( function(event) {
+        //console.log( "event object: "+ event.currentTarget.id +" <= " +event.currentTarget.value);
+        //console.dir( event );
+    	var v = event.currentTarget.value;
+        if (v != this.oldval) {
+        	this.oldval = v;
+        	websend('/change?n='+event.currentTarget.id+'&v='+v);
+        }       
+      }));
+	$( document ).tooltip({
+    	show: { effect: "slideDown", duration: 400, delay: 1500 }
+      });
+	$( "#tttoggle" ).on ("change", ( function(event) {
+		var v = $(this).is(":checked");
+			$( document ).tooltip(v ? 'enable' : 'disable');
+	  }));
+  } );
+  $( function() {
+	    $( "#tabs" ).tabs();
+	  } );
+  //$( '.ui-tabs-active' ).css('color', '#80ced6');
+  </script>
+<!-- 
+<style>
+.ui-tabs-active {
+	background-color: #b3ffff;
+}
+</style>
+ -->
+ 
+</head>
+<body onload="javascript:init()">
+
+<!-- <div class="widget" style='background-color:#b3ffff;'> -->
+<div id="tabs">
+  <ul>
+    <li><a href="#tabs-1">Manual</a></li>
+    <li><a href="#tabs-2">Auto</a></li>
+    <li><a href="#tabs-3">State</a></li>
+    <li><a href="#tabs-4">Setup</a></li>
+  </ul>
+  <div id="tabs-1" style='background-color:#b3ffff;'>
+  	<!-- <fieldset><legend>Manual</legend> -->
+  	<table><tr><td colspan=2>
+	Current Time: <b><span id="timenow" style="color:Indigo;">999</span></b>
+	</td></tr><tr><td colspan=2>
+	<label for="tzone">Zone:</label>
+  	<input id="tzone" name="value" value="-7" style="width:2em" title="Specify the timezone in hours ahead of GMT">
+    <label for="dst"title="Enable DST if you want to adjust by an hour between the second Sunday in March and the first in November">DST</label>
+    <input type="checkbox" name="dst" id="dst">
+	<label for="offset">Offset:</label>
+  	<input id="offset" name="value" value="0" style="width:2em" title="Specify the offset in minutes">
+	</td></tr><tr><td style='font-size:90%'>
+  	<label>Help tips:</label>
+    <span class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" id="tttoggle" name="tttoggle" value="true">
+    </span>
+    </td><td style='text-align:right'>
+	<a style="font-variant: small-caps;" href="/settings" title="Click to change the connection settings, e.g. if you are about to switch to a different network">settings</a>    
+	</td></tr><tr><td colspan=2><hr/></td></tr>
+	<tr><td>
+    <label for="active" title="Open or close the damper manually">Control is: <b><span id="mantabfdbck" style="color:Indigo;">Manual</span></b></label>&nbsp;&nbsp;&nbsp;&nbsp;
+  	</td><td style='text-align:right'>
+  	<button disabled id="manualactive" name="manualactive" title="Open or close the damper manually">Activate Manual Control</button>
+	</td></tr><tr><td>
+    <label for="manchange" title="Current state of the damper">Damper is: <b><span id="manstatefdbck" style="color:Indigo;">Open</span></b></label>&nbsp;&nbsp;&nbsp;&nbsp;
+  	</td><td style='text-align:right'>
+  	<button disabled id="opendamper" name="opendamper" title="Open the damper">Open damper</button>
+ 	<button id="closedamper" name="closedamper" title="Close the damper">Close damper</button>
+    </td></tr></table>
+  </div>
+  
+
+  <div id="tabs-2" style='background-color:#b3ffff;'>
+  	<!-- <fieldset><legend>Automatic</legend> -->
+  	<table><tr><td>
+    <label for="active" title="Open or close the damper automatically">Control is: <b><span id="auttabfdbck" style="color:Indigo;">Manual</span></b></label>&nbsp;&nbsp;&nbsp;&nbsp;
+  	<button id="autoactive" name="autoactive" title="Open or close the damper according to temperatures">Activate Automatic Control</button>
+	</td></tr><tr><td>  	
+    </td></tr></table>
+  </div>
+  
+  <div id="tabs-3" style='background-color:#b3ffff;'>
+  </div>
+  
+  <div id="tabs-4" style='background-color:#b3ffff;'>
+  </div>
+</div>
+
+<div id='loading_wrap' style='position:fixed; height:100%; width:100%; 
+	overflow:hidden; top:0; left:0; display: block; opacity: 0.7; background-color: #fff;
+   	z-index: 99; text-align: center;'><h1>Loading, please wait ...</h1></div>
+
+
+<script>
+$.switcher();
+</script>
+
+<script>																																								
+	<!-- Adding a websocket to the client (webpage) -->
+	var webSocket;
+
+	function timerUpdate() {
+		webSocket.send('/updatetime');
+	}
+	function activatemanual() {
+		document.getElementById('mantabfdbck').innerHTML = 'Manual';
+		document.getElementById('auttabfdbck').innerHTML = 'Manual';
+		document.getElementById('manualactive').disabled = true;
+		document.getElementById('autoactive').disabled = false;
+		var open = document.getElementById('manstatefdbck').innerHTML == "Open";
+		opendamper(open);
+	}
+	function activateautomatic() {
+		document.getElementById('mantabfdbck').innerHTML = 'Automatic';
+		document.getElementById('auttabfdbck').innerHTML = 'Automatic';				
+		document.getElementById('manualactive').disabled = false;
+		document.getElementById('autoactive').disabled = true;
+		document.getElementById('opendamper').disabled = true;		
+		document.getElementById('closedamper').disabled = true;		
+	}
+	function opendamper(open) {
+		var aut = document.getElementById('mantabfdbck').innerHTML == 'Automatic';
+		<!-- console.log('opendamper called with '+open+' '+aut+' '+(aut || !open)+' '+(aut || open)); -->
+		document.getElementById('opendamper').disabled = aut || open;
+		document.getElementById('closedamper').disabled = aut || ! open;
+		document.getElementById('manstatefdbck').innerHTML = open ? "Open" : "Closed";
+	}
+	function init() {
+		<!-- can't get ip address from js bom, so must do another mdns lookup to open websocket -->
+		<!-- https://stackoverflow.com/questions/12600244/how-to-get-host-ip-and-port-number-on-which-the-application-is-running-using-jav -->
+		webSocket = new WebSocket('ws://' + window.location.hostname + ':81/');
+		webSocket.onopen = function() {
+			document.getElementById('timenow').innerHTML = '888';
+			setInterval(timerUpdate, 1000);           <!-- milliseconds -->
+			websend('/initialise');
+			if (navigator.userAgent.match(/(iPod|iPhone|iPad)/)) {
+				$( document ).tooltip({ show: { delay: 200 } });
+				$( document ).tooltip('disable');
+			} else {
+				$( "#tttoggle").prop("checked", "true");
+				$(".ui-switcher").attr("aria-checked", "true");
+			}
+		}
+		webSocket.onmessage = function(event) {
+			var data = JSON.parse(event.data);
+			if (data.hasOwnProperty('curTime')) {
+				var curTime = data['curTime'];
+				document.getElementById('timenow').innerHTML = curTime;
+			} else if (data.hasOwnProperty('activatemanual')) {
+				activatemanual();
+			} else if (data.hasOwnProperty('activateauto')) {
+				activateautomatic();
+			} else if (data.hasOwnProperty('opendamper')) {
+				opendamper(true);
+			} else if (data.hasOwnProperty('closedamper')) {
+				opendamper(false);
+			} else if (data.hasOwnProperty('initData')) {
+//				$("#tttoggle").checkboxradio("refresh");
+				var initdata = data['initData'];
+				for (let [key, value] of Object.entries(initdata)) {
+					//console.log(`${key}: ${value}`);
+					if (key == "manual") {				// special handling
+						if (value == 1) activatemanual();
+						else activateautomatic();
+					} else if (key == "damperopen") {
+						opendamper(value == 1);
+					} else {
+						var e = document.getElementById(key);
+						//console.dir(e);
+						if (e != null) {		// e.g. if gdata has never yet been saved?
+							if (e.type == "text") {
+								e.value = value;		// only works for spinners
+							} else if (e.type == "checkbox" || e.type == "radio") {
+								$("#"+key).prop("checked", value == 1 ? true : false);
+								$("#"+key).checkboxradio("refresh");
+								//console.dir(e);
+							} else if (e.type == "select-one") {
+								e.selectedIndex = value-1;			// as value is one-offset
+								$("#"+key).selectmenu("refresh");
+							}
+						}
+					}
+				}
+			    $('#loading_wrap').remove();
+
+			} else {
+				console.log('unrecognised websocket message');
+			}
+		}
+	}
+
+</script>
+</body>
+</html>
