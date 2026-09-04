@@ -35,8 +35,9 @@
 
 #include "wifi.h"
 
-#include "MorseSender.h"
 #include "SerialDebugHelper.h"
+#include "MorseSender.h"
+#include "CrashLog.h"
 #include "WebHandlerBase.h"
 
 /*
@@ -179,6 +180,7 @@ void wifi::setState(WifiState newstate) {
 	if (newstate != state) {
 		state = newstate;
 		lastUptimeTick = stateStartTime = millis();
+		CrashLog::recordState((uint32_t)newstate);
 		showState(newstate);
 	}
 }
@@ -270,7 +272,7 @@ bool wifi::ssidVisible() {
 
     int n = WiFi.scanNetworks(false, false);
     for (int i = 0; i < n; i++) {
-        if (WiFi.SSID(i) == ssid) {
+        if (WiFi.SSID(i) == ssid) { // @suppress("Invalid arguments")
             return true;
         }
     }
