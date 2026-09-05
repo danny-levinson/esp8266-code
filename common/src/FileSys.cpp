@@ -15,12 +15,18 @@ void safestrncpy(char *dst, const char *src, int maxlen) {
 	dst[maxlen-1] = '\0';
 }
 
+static bool fs_is_started = false;
+
 void setup_file_system() { // Start the file system and (maybe) list all contents
-	static bool fs_is_started = false;
 	if (! fs_is_started) {
-		FileSys.begin();                             // Start the File System (SPIFFS or LittleFS)
-		fs_is_started = true;
+		if (FileSys.begin()) {                         // Start the File System (SPIFFS or LittleFS)
+			fs_is_started = true;
+		}
 	}
+}
+
+bool file_system_is_running() {
+	return fs_is_started;
 }
 
 String formatBytes(size_t bytes) { // convert sizes in bytes to KB and MB

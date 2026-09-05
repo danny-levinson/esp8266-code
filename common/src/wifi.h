@@ -90,6 +90,7 @@ private:
 
     // -------------------- Internal Helpers --------------------
     void setState(WifiState s);
+    const char *getStateName(WifiState s, char *code);
     void showState(WifiState s);
     bool elapsed(unsigned long ms);
 

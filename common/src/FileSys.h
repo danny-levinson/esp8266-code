@@ -23,6 +23,8 @@
 
 void setup_file_system();
 
+bool file_system_is_running();
+
 String formatBytes(size_t bytes);
 
 void print_files_to_serial(bool listall);			// for debugging

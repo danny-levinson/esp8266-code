@@ -13,7 +13,7 @@
 #include "WebHandlerBase.h"
 #include "CrashLog.h"
 
-#define DEBUG 2			// override default of 1 for this file only (for illustration)
+//#define DEBUG 2			// override default of 1 for this file only (for illustration)
 
 static wifi mywifi;
 
@@ -31,11 +31,7 @@ void StandardHelpers::setup(WebHandlerBase *webhandler,
 	init_timings();
 #endif
 	setup_file_system();
-	CrashLog::begin();
-	CrashInfo ci;
-	if (CrashLog::load(ci)) {
-		SPRNTF(1, "Last boot reason: %s, %u, %u\n", ci.reason.c_str(), ci.lastState, ci.uptime);
-	}
+	CrashCheckpoint_init();
 
 	static char otapasswd[40];
 	strncpy(otapasswd, nameaspfx, 39);

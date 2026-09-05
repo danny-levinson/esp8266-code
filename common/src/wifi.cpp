@@ -37,6 +37,7 @@
 
 #include "SerialDebugHelper.h"
 #include "MorseSender.h"
+#include "NTPtime.h"
 #include "CrashLog.h"
 #include "WebHandlerBase.h"
 
@@ -126,6 +127,9 @@ void wifi::setup(WebHandlerBase *webhandler,
 }
 
 void wifi::loop() {
+	//void CrashCheckpoint_periodic(app_flags, app_value, app_text, rtc_unix_time)
+	CrashCheckpoint_periodic(0, (uint32_t)state, getStateName(state, 0), NTPtimeManager.getUptime());
+
     fsmTick();
 }
 
@@ -135,7 +139,7 @@ void wifi::notifySettingsChanged() {
 
 // -------------------- Debugging & Monitoring --------------------
 
-void wifi::showState(WifiState state) {
+const char *wifi::getStateName(WifiState state, char *code) {
 	struct {
 		WifiState st;
 		char *stname;
@@ -149,18 +153,25 @@ void wifi::showState(WifiState state) {
 			{WIFI_STATE_STA_RECONNECTING, "sta_reconnecting", 'f'},
 			{WIFI_STATE_BOOT, 0, 'g'}
 	};
+	const char *nm = 0; char newcode = 'x';
+	for (int i = 0; state_table[i].stname != 0; i++) {
+		if (state_table[i].st == state) {
+			nm = state_table[i].stname;
+			newcode = state_table[i].stcode;
+		}
+	}
+	if (nm == 0) nm = "unknown";
+	if (code != 0) *code = newcode;
+	return nm;
+}
+
+void wifi::showState(WifiState state) {
 	static WifiState laststate = WIFI_STATE_STA_FAILED;		// initialise to anything but boot
 	static int ditto_count = 0, ditto_limit = 500;
-	static char *lastname = "xxx";
+	static const char *lastname = "xxx";
 	if (state != laststate) {								// should always be true
-		char *nm = 0, newcode = 'x';
-		for (int i = 0; state_table[i].stname != 0; i++) {
-			if (state_table[i].st == state) {
-				nm = state_table[i].stname;
-				newcode = state_table[i].stcode;
-			}
-		}
-		if (nm == 0) nm = "unknown";
+		const char *nm = 0; char newcode = 'x';
+		nm = getStateName(state, &newcode);
 		SPRNTF(1, "state: %s\r\n", nm);
 		morse_signaller->signal(newcode);
 		laststate = state;
@@ -180,7 +191,6 @@ void wifi::setState(WifiState newstate) {
 	if (newstate != state) {
 		state = newstate;
 		lastUptimeTick = stateStartTime = millis();
-		CrashLog::recordState((uint32_t)newstate);
 		showState(newstate);
 	}
 }
