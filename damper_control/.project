@@ -34,7 +34,7 @@
 		<link>
 			<name>common</name>
 			<type>2</type>
-			<locationURI>WORKSPACE_LOC/common</locationURI>
+			<locationURI>WORKSPACE_LOC/esp8266-code/common</locationURI>
 		</link>
 		<link>
 			<name>core/core</name>
