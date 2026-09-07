@@ -16,6 +16,7 @@ class StandardHelpers {
 public:
 	void setup(WebHandlerBase *webhandler,
 			   WebSocketBase *sockethandler,
+			   const char *title,
 			   const char *nameaspfx,
 			   bool debug);
 	void loopBegin();

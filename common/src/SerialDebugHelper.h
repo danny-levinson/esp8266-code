@@ -5,8 +5,8 @@
  *      Author: Danny
  */
 
-#ifndef DEBUG_H_
-#define DEBUG_H_
+#ifndef SERIAL_DEBUG_HELPER_
+#define SERIAL_DEBUG_HELPER_
 
 
 #define DEBUG 1
@@ -27,4 +27,4 @@
 
 
 
-#endif /* DEBUG_H_ */
+#endif /* SERIAL_DEBUG_HELPER_ */

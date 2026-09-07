@@ -72,7 +72,7 @@ bool WebHandlerBase::handleFileRead(String path) { // send the right file to the
 // i.e. send 404 response
 
 void WebHandlerBase::handleNotFound(String path) {
-	WiFiClient client = httpServer.client();
+	WiFiClient client = httpServer.client(); // @suppress("Abstract class cannot be instantiated")
 	CPNF("HTTP/1.1 404 NotFound");
 	CPNF("Content-Type: text/plain");
 	CPNF("Connection: close");

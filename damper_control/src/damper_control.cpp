@@ -18,22 +18,26 @@
 /*
  * Sloeber version
  *
- * Compile using build
- * Load using launch if connected directly,
- * or using 'loadprog' from command line if OTA
+ * Compile using Sloeber|Verify
+ * Load using Sloeber|Upload Sketch after setting port in Project|Properties|Sloeber
+ * Note: for OTA loading, set OTA password to <hostnamepfx>+"Upd8" in Project|Properties|Sloeber|Port set password
+ * - if you change the hostnamepfx, upload first with the old ota password, then change it to the new one
+ * - OTA doesn't care about the login name, only the password
  *
- * See initial instructions above start_up_station() in wifi.cpp to establish initial connection
+ * Names:
+ * 		hostnamepfx		- used for webhandler (settings page, debug page), AP station name (in wifi), OTA password
+ * 		textname		- used only for serial port initial debug message
+ * 		publicname		- set using settings page, shown there too, also used as wifi host name, ota login name
  */
 
-//static const int ledPin = D4;              // for Wemos D1 mini
 
 // set TEST to 0 for the (a?) real controller
 // set TEST to 1 for a chip connected to the USB port
 
 #define TEST 1
 #if TEST
-const char* hostnamepfx = "DamperControlTest";		// used only in AP mode to acquire publicname, etc
-const char* textname = "Damper Controller Test";			// device type, used for messages to user
+const char* hostnamepfx = "DCtest";						// used in AP mode to acquire publicname, OTA, etc
+const char* textname = "Damper Controller Test";		// device type, used for debug message to user
 #else
 const char* hostnamepfx = "DamperControl";
 const char* textname = "Damper Controller";
@@ -49,7 +53,7 @@ class WebSocketApp *my_socketHandler = 0;
 void setup() {
     my_webhandler = new WebHandler(hostnamepfx);
     my_socketHandler = new WebSocketApp();
-	standardhelpers.setup(my_webhandler, my_socketHandler, textname, false);
+	standardhelpers.setup(my_webhandler, my_socketHandler, textname, hostnamepfx, false);
 	the_damper.setup_damper();
 }
 
