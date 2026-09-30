@@ -125,7 +125,7 @@ class FixedSizeQueueArray {
     void blink () const;
 
     // the pin number of the on-board led.
-    static const int ledPin = D4;              // for Wemos D1 mini
+    static const int ledPin = LED_BUILTIN;              // for Wemos D1 mini
 
     Print * printer; // the printer of the queue.
     void (*exitHandler)();
