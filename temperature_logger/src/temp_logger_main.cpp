@@ -9,7 +9,7 @@
 
 #include "app_code.h"
 
-#define DEBUG 2			// override default of 1
+#define DEBUG 2			// override default of 1 for just this file
 
 
 
@@ -34,11 +34,11 @@
 
 #define TEST 1
 #if TEST
-const char* hostnamepfx = "AppCodeTest";						// used in AP mode to acquire publicname, OTA, etc
-const char* textname = "App Code Test";		// device type, used for debug message to user
+const char* hostnamepfx = "TempLogTest";						// used in AP mode to acquire publicname, OTA, etc
+const char* textname = "Temperature Logger Test";		// device type, used for debug message to user
 #else
-const char* hostnamepfx = "TheApplication";
-const char* textname = "The Application";
+const char* hostnamepfx = "TemperatureLogger";
+const char* textname = "Temperature Logger";
 #endif
 
 
