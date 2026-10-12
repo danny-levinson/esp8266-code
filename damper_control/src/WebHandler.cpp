@@ -14,6 +14,12 @@
 #include "damper.h"
 
 
+void WebHandler::registerAppRoutes()
+{
+	httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
+}
+
+
 WebHandler::WebHandler(const char *genericname) :
 	WebHandlerBase(genericname)
 {
@@ -59,11 +65,6 @@ void WebHandler::debug_set_servo_angles() {
 	client.printf("setting angles: ang1: %d, ang2: %d\r\n", ang1, ang2);
 	the_damper.set_servo_angles(ang1, ang2);
 	saveAppData();
-}
-
-void WebHandler::registerAppRoutes()
-{
-	httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
 }
 
 
