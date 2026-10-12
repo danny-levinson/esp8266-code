@@ -11,6 +11,12 @@
 #include "DataSaver.h"
 
 
+void WebHandler::registerAppRoutes()
+{
+	//httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
+}
+
+
 WebHandler::WebHandler(const char *genericname) :
 	WebHandlerBase(genericname)
 {
@@ -29,12 +35,6 @@ bool WebHandler::restoreAppData() {
 	return r;
 }
 
-
-
-void WebHandler::registerAppRoutes()
-{
-	//httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
-}
 
 
 //static char debug_page_form_extra[] PROGMEM = R"=====(
