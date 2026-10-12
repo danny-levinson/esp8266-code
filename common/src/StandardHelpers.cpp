@@ -9,6 +9,7 @@
 #include "DelayTimings.h"
 #include "FileSys.h"
 #include "SerialDebugHelper.h"
+#include "MsgLogHandler.h"
 #include "wifi.h"
 #include "WebHandlerBase.h"
 #include "CrashLog.h"
@@ -47,6 +48,7 @@ void StandardHelpers::setup(WebHandlerBase *webhandler,
 	init_timings();
 #endif
 	setup_file_system();
+	setup_message_logging();
 	CrashCheckpoint_init();
 
 	static char otapasswd[40];

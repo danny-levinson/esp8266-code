@@ -22,7 +22,10 @@ int get_delay_time() {
 
 // monitor length of time to execute main loop
 
-FixedSizeQueueArray<int> timings(20);		// "timings" is just a list of times
+// "timings" is just a list of times
+// we don't bother to define an exitHandler for this simple case
+
+FixedSizeQueueArray<int> timings(20);
 
 void init_timings() {
 	timings.setPrinter(Serial);

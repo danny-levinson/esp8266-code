@@ -7,6 +7,9 @@
  */
 #include "NTPtime.h"
 
+//#include "MsgLogHandler.h"
+
+
 NTPtime NTPtimeManager("time.google.com", "pool.ntp.org");
 
 NTPtime::NTPtime(const char *server1,
@@ -67,6 +70,7 @@ static bool isDST_NorthAmerica(const struct tm *local) {
 time_t NTPtime::adjustTime(time_t t, int tzone, int dst, int offset) {
     // Convert UTC → local time first
     time_t local = t + (tzone * 3600);
+    //MSGV("times - utc: %llu, tzone: %d, local: %llu", t, tzone, local);
 
     struct tm *tm_local = gmtime(&local);
 
@@ -74,10 +78,8 @@ time_t NTPtime::adjustTime(time_t t, int tzone, int dst, int offset) {
     if (dst && isDST_NorthAmerica(tm_local)) {
         local += 3600;
     }
-
     // Apply minute displacement
     local += (offset * 60);
-
     return local;
 }
 
@@ -88,7 +90,7 @@ time_t NTPtime::getAdjustedTime(int tzone, int dst, int offset) {
     return adjustTime(now, tzone, dst, offset);
 }
 
-char* NTPtime::getTimeString(int tbuflen, char *tbuff, time_t t) {
+char* NTPtime::getTimeString(int tbuflen, char *tbuff, time_t t, bool html) {
     if (tbuflen < 20) {   // needs 17 chars + null
         if (tbuflen > 0) tbuff[0] = '\0';
         return tbuff;
@@ -97,10 +99,11 @@ char* NTPtime::getTimeString(int tbuflen, char *tbuff, time_t t) {
     struct tm *tm_info = gmtime(&t);
 
     snprintf(tbuff, tbuflen,
-             "%02d-%02d-%02d %02d:%02d:%02d",
+             "%02d-%02d-%02d%s%02d:%02d:%02d",
              (tm_info->tm_year % 100),
              tm_info->tm_mon + 1,
              tm_info->tm_mday,
+			 html ? "&nbsp;" : " ",
              tm_info->tm_hour,
              tm_info->tm_min,
              tm_info->tm_sec);

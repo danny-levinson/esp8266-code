@@ -24,7 +24,7 @@ public:
     static time_t adjustTime(time_t t, int tzone, int dst, int offset);
     time_t getAdjustedTime(int tzone, int dst, int offset);
 
-    static char* getTimeString(int tbuflen, char *tbuff, time_t t);
+    static char* getTimeString(int tbuflen, char *tbuff, time_t t, bool html = false);
 
 private:
     uint32_t bootEpoch;    // true epoch at boot time
