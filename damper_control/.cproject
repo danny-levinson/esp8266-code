@@ -34,6 +34,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/SafeString/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/common/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/log4Esp/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.cpp.sketch.input.1755058445" name="CPP source files" superClass="io.sloeber.compiler.cpp.sketch.input"/>
 							</tool>
@@ -54,6 +55,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/SafeString/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/common/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/log4Esp/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.c.sketch.input.1039738437" name="C Source Files" superClass="io.sloeber.compiler.c.sketch.input"/>
 							</tool>
@@ -73,6 +75,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/DNSServer/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/SafeString/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/common/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/damper_control/libraries/log4Esp/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.S.sketch.input.2052676198" name="Assembly source files" superClass="io.sloeber.compiler.S.sketch.input"/>
 							</tool>
@@ -113,7 +116,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="libraries/WebSockets/travis|libraries/SafeString/PlatformIO|libraries/LittleFS/lib|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="libraries/log4Esp/travis|libraries/log4Esp/docs|libraries/WebSockets/travis|libraries/SafeString/PlatformIO|libraries/LittleFS/lib|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

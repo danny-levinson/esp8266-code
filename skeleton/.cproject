@@ -32,6 +32,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/Hash/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/ESP8266mDNS/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/Servo/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/log4Esp/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.cpp.sketch.input.1287321276" name="CPP source files" superClass="io.sloeber.compiler.cpp.sketch.input"/>
 							</tool>
@@ -50,6 +51,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/Hash/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/ESP8266mDNS/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/Servo/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/log4Esp/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.c.sketch.input.598409741" name="C Source Files" superClass="io.sloeber.compiler.c.sketch.input"/>
 							</tool>
@@ -68,6 +70,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/Hash/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/ESP8266mDNS/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/Servo/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/skeleton/libraries/log4Esp/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.S.sketch.input.710647308" name="Assembly source files" superClass="io.sloeber.compiler.S.sketch.input"/>
 							</tool>
@@ -108,7 +111,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="libraries/WebSockets/travis|libraries/LittleFS/lib|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="libraries/log4Esp/travis|libraries/log4Esp/docs|libraries/WebSockets/travis|libraries/LittleFS/lib|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
