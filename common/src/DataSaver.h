@@ -5,8 +5,8 @@
  *      Author: Danny
  */
 
-#ifndef DCCOMMON_DATASAVER_H_
-#define DCCOMMON_DATASAVER_H_
+#ifndef DATASAVER_H_
+#define DATASAVER_H_
 
 #include "FileSys.h"
 
@@ -26,4 +26,4 @@ private:
 
 
 
-#endif /* DCCOMMON_DATASAVER_H_ */
+#endif /* DATASAVER_H_ */

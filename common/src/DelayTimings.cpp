@@ -9,6 +9,8 @@
 #include "DelayTimings.h"
 #include "FixedQueueArray.h"
 
+// delay_time is saved & restored in WebHandlerBase as part of LibraryData
+// (currently, the only part)
 
 static int delay_time = 20;
 

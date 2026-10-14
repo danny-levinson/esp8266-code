@@ -5,6 +5,10 @@
  *      Author: Danny
  */
 
+/*
+ * Saves fixed size data structures to a prespecified file
+ * to give data permanence across reboots
+*/
 
 #include "DataSaver.h"
 

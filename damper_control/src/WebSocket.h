@@ -25,7 +25,6 @@ protected:
                                    WStype_t type,
                                    String &msg) override;
 
-    void getTimeAdjustmentParameters(int &tz, int &dst, int &offst) override;	// supplied by app from UI
 
 private:
     void sendInitData(uint8_t num);

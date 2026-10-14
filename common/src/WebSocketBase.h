@@ -25,8 +25,6 @@ public:
     virtual void deleteDataFromFile() = 0;
 
 protected:
-    virtual void getTimeAdjustmentParameters(int &tz, int &dst, int &offst) = 0;	// supplied by app from UI
-
     WebSocketsServer webSocket;
 
     // Extension point for app-specific WS messages
@@ -35,7 +33,7 @@ protected:
                                            String &msg) = 0;
 
     // Common handlers
-    void handleCommonWebSocketMessage(uint8_t num,
+    bool handleCommonWebSocketMessage(uint8_t num,
                                       WStype_t type,
                                       const String &msg);
 

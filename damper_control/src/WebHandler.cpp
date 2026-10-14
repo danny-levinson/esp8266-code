@@ -70,7 +70,7 @@ void WebHandler::debug_set_servo_angles() {
 
 static char debug_page_form_extra[] PROGMEM = R"=====(
 <hr/>
-<form method=GET action="dbgsetservoangles">
+<form autocomplete="off" method=GET action="dbgsetservoangles">
 Servo angles - 
 )=====";
 
@@ -85,8 +85,8 @@ void WebHandler::renderAppDebugInfo()
 	CP(FPSTR(debug_page_form_extra));
 	int ang1, ang2;
 	the_damper.get_servo_angles(ang1, ang2);
-	client.printf("Closed: <input type=\"text\" name=\"ang1\" size=\"4\" value=\"%d\">\r\n", ang1);
-	client.printf("Open: <input type=\"text\" name=\"ang2\" size=\"4\" value=\"%d\">\r\n", ang2);
+	client.printf("Closed: <input type=\"number\" min=\"0\" max=\"180\" name=\"ang1\" size=\"4\" value=\"%d\">\r\n", ang1);
+	client.printf("Open: <input type=\"number\" min=\"0\" max=\"180\" name=\"ang2\" size=\"4\" value=\"%d\">\r\n", ang2);
 	CP(FPSTR(debug_page_form_ender));
 }
 

@@ -16,6 +16,7 @@
 #include "DelayTimings.h"
 #include "NetSettings.h"
 #include "DataSaver.h"
+#include "CommonGlobals.h"
 
 #include "WebHandlerBase.h"
 
@@ -40,6 +41,7 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 		//SPRNTF(1, "Starting HTTP...\r\n");
 		httpServer.on("/setsettings", [this]() { this->saveSettings(); });
 		httpServer.on("/debug", HTTP_GET, [this]() { this->handleDebugPage(); });
+		httpServer.on("/dbgsettimemods", HTTP_GET, [this]() { this->debugSetTimeModifiers(); });
 		httpServer.on("/dbgsetloopdelay", HTTP_GET, [this]() { this->debugSetLoopDelay(); });
 		httpServer.on("/dbggetfile", HTTP_GET, [this]() { this->debugGetFile(); });
 		httpServer.on("/dbgputfile",
@@ -161,13 +163,13 @@ static char debug_page_form1[] PROGMEM = R"=====(
 <a style="font-variant: small-caps;" href="/settings" title="Click to change the connection settings, e.g. if you are about to switch to a different network">settings</a>    
 </h5>
 <hr/>
-<form method="POST" action="dbgputfile" enctype="multipart/form-data">
+<form autocomplete="off" method="POST" action="dbgputfile" enctype="multipart/form-data">
   <b>Files:</b>&nbsp;&nbsp;&nbsp;
   <input type="file" name="file" value="index.html" />
   <input class="button" type="submit" value="Upload" />
 </form>
 <p/>
-<form method=GET action="dbggetfile">
+<form autocomplete="off" method=GET action="dbggetfile">
   <select id="fileselect" name="file" size="3">
 )=====";
 
@@ -177,11 +179,30 @@ static char debug_page_form2[] PROGMEM = R"=====(
   <input type=submit name="subaction" value="Delete" />
 </form>
 <hr/>
-<form method=GET action="dbgsetloopdelay">
-Recent loop times: 
+<form autocomplete="off" method=GET action="dbgsettimemods">
+Local time modifiers:<br/>
+Universal&nbsp;time:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local&nbsp;time:&nbsp;%s
+<br/>
+<label for="tzone" title="Specify the timezone in hours ahead of GMT">Time zone:
+<input type="number" value=%d id="tzone" name="tzone" min="-12" max="12" size="4"></label>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<label for="dst" title="Enable DST if you want to adjust by an hour between the second Sunday in March and the first in November">DST:
+<input type="checkbox" %s id="dst" name="dst"></label>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<label for="offset" title="Choose an offset of up to 10 minutes if your preferred personal time is not exactly standard">Time offset:
+<input type="number"  value="%d" id="offset" name="offset" min="-10" max="10" size="4"></label>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="submit" name="subaction" value="Set modifiers">
 )=====";
 
 static char debug_page_form3[] PROGMEM = R"=====(
+</form>
+<hr/>
+<form autocomplete="off" method=GET action="dbgsetloopdelay">
+Recent loop times: 
+)=====";
+
+static char debug_page_form4[] PROGMEM = R"=====(
   <input class="button" type="submit" name="subaction" value="Set" />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
@@ -198,60 +219,67 @@ static char debug_page_trailer[] PROGMEM = R"=====(
 
 
 void WebHandlerBase::renderCommonDebugInfo() {
-  WiFiClient client = httpServer.client();
-  CPNF("HTTP/1.1 200 OK");
-  CPNF("Content-Type: text/html");
-  CPNF("Connection: close");
-  CPN();
-  MSG("sending debug page");
-  client.printf_P(debug_page_header, textname, textname);
+	WiFiClient client = httpServer.client();
+	CPNF("HTTP/1.1 200 OK");
+	CPNF("Content-Type: text/html");
+	CPNF("Connection: close");
+	CPN();
+	MSG("sending debug page");
+	client.printf_P(debug_page_header, textname, textname);
 
-  CPF("<h4>");
-  long uptime = NTPtimeManager.getUptime();
-  if (uptime == 0) {
-    CPF("Up for: "); CP(millis());
-  } else {
-	char tmbuff[20];
-    CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
-  }
-  CPF(",&nbsp;&nbsp;   FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(InitialFreeHeapSize); CPNF("</h4>");
-  CPF("<h5>");
-  CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
-  CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
-  CPF(",&nbsp;&nbsp;&nbsp;&nbsp;   signal strength: "); CP(WiFi.RSSI());
-  //CPNF("</h5>");   - see debug_page_form1
+	CPF("<h4>");
+	long uptime = NTPtimeManager.getUptime();
+	if (uptime == 0) {
+		CPF("Up for: "); CP(millis());
+	} else {
+		char tmbuff[20];
+		CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
+	}
+	CPF(",&nbsp;&nbsp;   FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(InitialFreeHeapSize); CPNF("</h4>");
+	CPF("<h5>");
+	CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
+	CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
+	CPF(",&nbsp;&nbsp;&nbsp;&nbsp;   signal strength: "); CP(WiFi.RSSI());
+	//CPNF("</h5>");   - see debug_page_form1
 
-  CP(FPSTR(debug_page_form1));
-  Dir dir = FileSys.openDir("/");
-  while (dir.next()) {                      // List the file system contents
-    String fileName = dir.fileName();
-    size_t fileSize = dir.fileSize();
-    client.printf("  <option value=\"%s\">%s,  (%d bytes)</option>\r\n", fileName.c_str(), fileName.c_str(), fileSize);
-  }
-  CP(FPSTR(debug_page_form2));
-  float sum = 0, sumsq = 0, mean = 0, devn = 1; int n = 0, minn = 0, maxn = 0;
-  for (;;) {
-	  int v = get_timingdatum(n);
-	  if (v <= -100) break;
-	  client.printf("%s%d", n>0 ? ", ":"", v);
-	  n += 1;
-	  sum += v;
-	  sumsq += v*v;
-  }
-  client.printf("\r\n<br/>\r\n");
-  mean = sum/n;
-  client.printf("N: %d, mean: %0.2f, deviation: %0.2f\r\n", n, mean, sqrt((sumsq-mean*sum)/(n-1)));
-  client.printf("<br/>Delay time: \r\n");
-  client.printf("<input type=\"text\" name=\"dt\" size=\"4\" value=\"%d\">\r\n", get_delay_time());
-  CP(FPSTR(debug_page_form3));
-  client.printf("<table>\r\n");
-  client.printf("<tr><td>Connects: %d</td><td>Fails: %d</td><td>Fallbacks: %d</td></tr>\r\n",
-		  wifi_instance->getStaConnectCount(), wifi_instance->getStaFailCount(), wifi_instance->getApFallbackCount());
-  client.printf("<tr><td>Last success time: %0.3f seconds</td><td>Last failure time: %0.3f seconds</td></tr>\r\n",
-		  wifi_instance->getLastStaSuccess()/1000.0, wifi_instance->getLastStaFailure()/1000.0);
-  client.printf("<tr><td>Total station uptime: %0.3f</td><td>Total access point uptime: %0.3f</td></tr>\r\n",
-		  wifi_instance->getTotalStaUptime()/1000.0, wifi_instance->getTotalApUptime()/1000.0);
-  client.printf("</tr></table>");
+	CP(FPSTR(debug_page_form1));
+	Dir dir = FileSys.openDir("/");
+	while (dir.next()) {                      // List the file system contents
+		String fileName = dir.fileName();
+		size_t fileSize = dir.fileSize();
+		client.printf("  <option value=\"%s\">%s,  (%d bytes)</option>\r\n", fileName.c_str(), fileName.c_str(), fileSize);
+	}
+	common_globals.restore();
+	char tmsgbufgmt[40], tmsgbuflcl[40];
+	NTPtimeManager.getTimeString(40, tmsgbufgmt, NTPtimeManager.getEpoch());
+	NTPtimeManager.getTimeString(40, tmsgbuflcl, NTPtimeManager.getAdjustedTime(cg_tzone, cg_dst, cg_offset));
+	SPRNTF(1, "Sending time data (hdlr): %d, %d, %d\n", cg_tzone, cg_dst, cg_offset);
+	client.printf_P(debug_page_form2,
+			tmsgbufgmt, tmsgbuflcl, cg_tzone, cg_dst ? "checked" : "", cg_offset);
+	CP(FPSTR(debug_page_form3));
+	float sum = 0, sumsq = 0, mean = 0, devn = 1; int n = 0, minn = 0, maxn = 0;
+	for (;;) {
+		int v = get_timingdatum(n);
+		if (v <= -100) break;
+		client.printf("%s%d", n>0 ? ", ":"", v);
+		n += 1;
+		sum += v;
+		sumsq += v*v;
+	}
+	client.printf("\r\n<br/>\r\n");
+	mean = sum/n;
+	client.printf("N: %d, mean: %0.2f, deviation: %0.2f\r\n", n, mean, sqrt((sumsq-mean*sum)/(n-1)));
+	client.printf("<br/>Delay time: \r\n");
+	client.printf("<input type=\"number\" min=\"0\" max=\"99\" name=\"dt\" size=\"4\" value=\"%d\">\r\n", get_delay_time());
+	CP(FPSTR(debug_page_form4));
+	client.printf("<table>\r\n");
+	client.printf("<tr><td>Connects: %d</td><td>Fails: %d</td><td>Fallbacks: %d</td></tr>\r\n",
+			wifi_instance->getStaConnectCount(), wifi_instance->getStaFailCount(), wifi_instance->getApFallbackCount());
+	client.printf("<tr><td>Last success time: %0.3f seconds</td><td>Last failure time: %0.3f seconds</td></tr>\r\n",
+			wifi_instance->getLastStaSuccess()/1000.0, wifi_instance->getLastStaFailure()/1000.0);
+	client.printf("<tr><td>Total station uptime: %0.3f</td><td>Total access point uptime: %0.3f</td></tr>\r\n",
+			wifi_instance->getTotalStaUptime()/1000.0, wifi_instance->getTotalApUptime()/1000.0);
+	client.printf("</tr></table>");
 }
 
 void WebHandlerBase::handleDebugPage() {
@@ -261,6 +289,30 @@ void WebHandlerBase::handleDebugPage() {
 	CP(FPSTR(debug_page_trailer));
 }
 
+void WebHandlerBase::debugSetTimeModifiers() {
+	if (! httpServer.hasArg("subaction")) return;							// button not pushed??
+	if (! httpServer.arg("subaction").equals("Set modifiers")) return;		// strange
+	bool good = true;
+	if (! httpServer.hasArg("tzone")) good = false;
+	else cg_tzone = atoi(httpServer.arg("tzone").c_str());
+	cg_dst = httpServer.hasArg("dst") ? 1 : 0;
+	if (! httpServer.hasArg("offset")) good = false;
+	else cg_offset = atoi(httpServer.arg("offset").c_str());
+	if (good) good = common_globals.save();
+
+	WiFiClient client = httpServer.client();
+	CPNF("HTTP/1.1 200 OK");
+	CPNF("Content-Type: text/html");
+	CPNF("Connection: close");
+	CPN();
+	if (! good) {
+		//SPRTLN(1, "failed to parse delay time for setting");
+		client.println("failed setting time modifiers");
+		return;
+	}
+	client.printf("set time modifiers successfully");
+	//SPRTLN(1, "set time modifiers successfully");
+}
 
 void WebHandlerBase::debugSetLoopDelay() {
 	if (! httpServer.hasArg("subaction")) return;			// neither button pushed??
@@ -374,7 +426,7 @@ static char settings_page[] PROGMEM = R"=====(
 <body>
 <h1>%s Settings</h1>
 <table style="width:25em">
-<form method=GET action="setsettings">
+<form autocomplete="off" method=GET action="setsettings">
 <tr><td colspan="2">Give your %s a name here (no spaces or hyphens please)
 and enter the credentials for connecting to your local network.
 Then click "submit", connect back to your network,
@@ -474,6 +526,7 @@ void WebHandlerBase::setSocketHandler(WebSocketBase *sockethandler) {
 }
 
 void WebHandlerBase::setupWebhandling(bool as_station) {
+	common_globals.restore();
 	if (as_station) NTPtimeManager.begin();
 	registerCommonRoutes(as_station);
 	static bool http_is_running = false;

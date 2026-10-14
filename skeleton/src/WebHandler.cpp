@@ -39,7 +39,7 @@ bool WebHandler::restoreAppData() {
 
 //static char debug_page_form_extra[] PROGMEM = R"=====(
 //<hr/>
-//<form method=GET action="dbgsetservoangles">
+//<form autocomplete="off" method=GET action="dbgsetservoangles">
 //Servo angles -
 //)=====";
 //

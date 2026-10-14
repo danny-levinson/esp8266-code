@@ -10,6 +10,7 @@
 
 #include "NTPtime.h"
 #include "WebSocketBase.h"
+#include "CommonGlobals.h"
 
 #include "SerialDebugHelper.h"
 
@@ -34,10 +35,11 @@ void WebSocketBase::setupWebsocket()
         }
 
         // Common handling first
-        this->handleCommonWebSocketMessage(num, type, msg);
+        if (! this->handleCommonWebSocketMessage(num, type, msg)) {
 
-        // App-specific handling
-        this->handleAppWebSocketMessage(num, type, msg);
+        	// App-specific handling if not handled by common
+        	this->handleAppWebSocketMessage(num, type, msg);
+        }
     });
 }
 
@@ -53,8 +55,7 @@ void WebSocketBase::loopWebsocket()
 
 void WebSocketBase::sendTimeData(uint8_t clientnum) {
 	int tzone, dst, offset;
-	getTimeAdjustmentParameters(tzone, dst, offset);
-	SPRNTF(1, "Sending time data: %d, %d, %d\n", tzone, dst, offset);
+	SPRNTF(1, "Sending time data (sckt): %d, %d, %d\n", cg_tzone, cg_dst, cg_offset);
 	StaticJsonDocument<100> jsonBuffer;     // .add fails silently if space is insufficient
 	JsonObject root = jsonBuffer.createNestedObject();
 	//root["seqNum"] = seqnum;
@@ -71,7 +72,7 @@ void WebSocketBase::sendTimeData(uint8_t clientnum) {
 	wsSend(clientnum, jsonout.c_str(), jsonout.length());
 }
 
-void WebSocketBase::handleCommonWebSocketMessage(uint8_t num,
+bool WebSocketBase::handleCommonWebSocketMessage(uint8_t num,
                                                  WStype_t type,
                                                  const String &msg)
 {
@@ -79,24 +80,31 @@ void WebSocketBase::handleCommonWebSocketMessage(uint8_t num,
 	switch (type) {
 	default:
 		MSG(pfx+"type: "+String(type));
-		break;
+		return false;
 
 	case WStype_CONNECTED: {               // if a new websocket connection is established
         IPAddress ip = webSocket.remoteIP(num);
         MSG(pfx+"Connected from "+String(ip[0])+"."+String(ip[1])+"."+String(ip[2])+"."+String(ip[3])+" url: "+msg);
     	}
 		wsSend(num, "hello from base");
-    	break;
+    	return true;
 
 	case WStype_TEXT:
-        if (msg == "ping") wsSend(num, "pong");
-        if (strstr(msg.c_str(), "/updatetime") != NULL) sendTimeData(num);
-        break;
+        if (msg == "ping") {
+        	wsSend(num, "pong");
+        	return true;
+        }
+        if (strstr(msg.c_str(), "/updatetime") != NULL) {
+        	sendTimeData(num);
+        	return true;
+        }
+        return false;
 
     case WStype_DISCONNECTED:             // if the websocket is disconnected
     	MSG(pfx+"Disconnected!\n");
-    	break;
+    	return true;
     }
+	return false;
 }
 
 void WebSocketBase::wsSend(uint8_t num, const String &msg)

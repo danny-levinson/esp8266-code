@@ -61,6 +61,7 @@ private:
     void handleNotFound(String path);
     void handleIgnore();
     void handleGeneric();
+    void debugSetTimeModifiers();
     void debugSetLoopDelay();
     void debugGetFile();
     void debugPutFile();
