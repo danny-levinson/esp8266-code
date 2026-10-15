@@ -17,7 +17,6 @@
 #include "damper.h"
 #include "gdata.h"
 
-//static int g_tzone, g_dst, g_offset;		// temporary
 
 static bool data_was_initialised = false;
 static String datafilename = "/gdata";
@@ -50,7 +49,7 @@ bool WebSocketApp::restoreDataFromFile() {
 		if (g_data_with_names[gdptr].gvar == NULL) gdptr = 0;
     }
     data_was_initialised = true;
-    common_globals.restore();			// override values of time modifiers from real repository
+    common_globals.restore();			// override values of time modifiers from common repository
     SPRNTF(1, "restored data from file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst); // @suppress("Method cannot be resolved")
    	return true;
 }
@@ -69,7 +68,7 @@ void WebSocketApp::saveDataToFile() {
 	data_was_initialised = true;
     SPRNTF(1, "saved data to file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst);
 	SPRTLN(1, "data saved to file");
-	common_globals.save();				// save time mods, etc, to their real repository
+	common_globals.save();				// save time mods, etc, to the common repository
 	restoreDataFromFile();
 }
 
