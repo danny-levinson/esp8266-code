@@ -31,13 +31,17 @@ public:
 	bool saveLibraryData();
 	virtual bool saveAppData() = 0;
 
+// utilities
+	WiFiClient &sendHeaderToClient(bool html = true, char *status = "200 OK");
+	void sendToClient(char *s, bool html = false);
+	bool setTimeModifiersFromServer();
+
 protected:
 	ESP8266WebServer httpServer{80};
 
 	// Extension points for derived classes
     virtual void registerAppRoutes() = 0;
     virtual void renderAppDebugInfo() = 0;
-    virtual void handleAppSettings() = 0;
 
     // Optional WebSocket extension
     virtual void handleAppWebSocketMessage(const char *msg) { }

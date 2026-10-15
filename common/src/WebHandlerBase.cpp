@@ -112,11 +112,7 @@ bool WebHandlerBase::handleFileRead(String path) { // send the right file to the
 // i.e. send 404 response
 
 void WebHandlerBase::handleNotFound(String path) {
-	WiFiClient client = httpServer.client(); // @suppress("Abstract class cannot be instantiated")
-	CPNF("HTTP/1.1 404 NotFound");
-	CPNF("Content-Type: text/plain");
-	CPNF("Connection: close");
-	CPN();
+	WiFiClient &client = sendHeaderToClient(false, "404 NotFound");
 	String message = (httpServer.method() == HTTP_GET)?"GET":"POST";
 	message += " ["+String(httpServer.args())+"] ";
 	message += "  "+path+" ?";
@@ -219,11 +215,8 @@ static char debug_page_trailer[] PROGMEM = R"=====(
 
 
 void WebHandlerBase::renderCommonDebugInfo() {
+	sendHeaderToClient();
 	WiFiClient client = httpServer.client();
-	CPNF("HTTP/1.1 200 OK");
-	CPNF("Content-Type: text/html");
-	CPNF("Connection: close");
-	CPN();
 	MSG("sending debug page");
 	client.printf_P(debug_page_header, textname, textname);
 
@@ -289,9 +282,23 @@ void WebHandlerBase::handleDebugPage() {
 	CP(FPSTR(debug_page_trailer));
 }
 
-void WebHandlerBase::debugSetTimeModifiers() {
-	if (! httpServer.hasArg("subaction")) return;							// button not pushed??
-	if (! httpServer.arg("subaction").equals("Set modifiers")) return;		// strange
+WiFiClient &WebHandlerBase::sendHeaderToClient(bool html, char *status) {
+	WiFiClient &client = httpServer.client();
+	CPF("HTTP/1.1");
+	CPN(status);
+	CPF("Content-Type: text/");
+	CPN(html ? "html" : "plain");
+	CPNF("Connection: close");
+	CPN();
+	return client;
+}
+
+void WebHandlerBase::sendToClient(char *s, bool html) {
+	WiFiClient &client = sendHeaderToClient(html);
+	CPN(s);
+}
+
+bool WebHandlerBase::setTimeModifiersFromServer() {
 	bool good = true;
 	if (! httpServer.hasArg("tzone")) good = false;
 	else cg_tzone = atoi(httpServer.arg("tzone").c_str());
@@ -299,30 +306,27 @@ void WebHandlerBase::debugSetTimeModifiers() {
 	if (! httpServer.hasArg("offset")) good = false;
 	else cg_offset = atoi(httpServer.arg("offset").c_str());
 	if (good) good = common_globals.save();
+	return good;
+}
 
-	WiFiClient client = httpServer.client();
-	CPNF("HTTP/1.1 200 OK");
-	CPNF("Content-Type: text/html");
-	CPNF("Connection: close");
-	CPN();
-	if (! good) {
+void WebHandlerBase::debugSetTimeModifiers() {
+	if (! httpServer.hasArg("subaction")) return;							// button not pushed??
+	if (! httpServer.arg("subaction").equals("Set modifiers")) return;		// strange
+	bool good = setTimeModifiersFromServer();
+	if (good) {
+		//SPRTLN(1, "set time modifiers successfully");
+		sendToClient("set time modifiers successfully");
+	} else {
+		sendToClient("failed setting time modifiers");
 		//SPRTLN(1, "failed to parse delay time for setting");
-		client.println("failed setting time modifiers");
-		return;
 	}
-	client.printf("set time modifiers successfully");
-	//SPRTLN(1, "set time modifiers successfully");
 }
 
 void WebHandlerBase::debugSetLoopDelay() {
 	if (! httpServer.hasArg("subaction")) return;			// neither button pushed??
 	if (httpServer.arg("subaction").equals("Restart")) {
 		{
-			WiFiClient client = httpServer.client();
-			CPNF("HTTP/1.1 200 OK");
-			CPNF("Content-Type: text/html");
-			CPNF("Connection: close");
-			CPN();
+			WiFiClient &client = sendHeaderToClient();
 			client.printf("restart pressed\r\n");
 			client.flush();
 		}
@@ -336,14 +340,10 @@ void WebHandlerBase::debugSetLoopDelay() {
 	if (! httpServer.hasArg("dt")) good = false;
 	else dt = atoi(httpServer.arg("dt").c_str());
 
-	WiFiClient client = httpServer.client();
-	CPNF("HTTP/1.1 200 OK");
-	CPNF("Content-Type: text/html");
-	CPNF("Connection: close");
-	CPN();
+	WiFiClient &client = sendHeaderToClient(false);
 	if (! good) {
 		//SPRTLN(1, "failed to parse delay time for setting");
-		client.println("failed setting loop delay time");
+		CPNF("failed setting loop delay time");
 		return;
 	}
 	//SPRNTF(1, "setting loop delay time: dt: %d\r\n", dt);
@@ -527,6 +527,7 @@ void WebHandlerBase::setSocketHandler(WebSocketBase *sockethandler) {
 
 void WebHandlerBase::setupWebhandling(bool as_station) {
 	common_globals.restore();
+	restoreAppData();
 	if (as_station) NTPtimeManager.begin();
 	registerCommonRoutes(as_station);
 	static bool http_is_running = false;
