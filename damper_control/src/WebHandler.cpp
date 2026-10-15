@@ -14,15 +14,12 @@
 #include "damper.h"
 
 
-void WebHandler::registerAppRoutes()
-{
+void WebHandler::registerAppRoutes() {
 	httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
 }
 
 
-WebHandler::WebHandler(const char *genericname) :
-	WebHandlerBase(genericname)
-{
+WebHandler::WebHandler(const char *genericname) : WebHandlerBase(genericname) {
 	appDataSaver = new DataSaver(&appData, sizeof(appData), "/appconfig");
 }
 
@@ -51,20 +48,16 @@ void WebHandler::debug_set_servo_angles() {
 	else ang1 = atoi(httpServer.arg("ang1").c_str());
 	if (! httpServer.hasArg("ang2")) good = false;
 	else ang2 = atoi(httpServer.arg("ang2").c_str());
-	WiFiClient client = httpServer.client();
-	CPNF("HTTP/1.1 200 OK");
-	CPNF("Content-Type: text/html");
-	CPNF("Connection: close");
-	CPN();
-	if (! good) {
+	WiFiClient &client = sendHeaderToClient(false);
+	if (good) {
+		//Serial.printf("setting angles: ang1: %d, ang2: %d\r\n", ang1, ang2);
+		client.printf("setting angles: ang1: %d, ang2: %d\r\n", ang1, ang2);
+		the_damper.set_servo_angles(ang1, ang2);
+		saveAppData();
+	} else {
 		//Serial.println("failed to parse angle for setting");
 		client.println("failed setting angles");
-		return;
 	}
-	//Serial.printf("setting angles: ang1: %d, ang2: %d\r\n", ang1, ang2);
-	client.printf("setting angles: ang1: %d, ang2: %d\r\n", ang1, ang2);
-	the_damper.set_servo_angles(ang1, ang2);
-	saveAppData();
 }
 
 
@@ -79,18 +72,12 @@ static char debug_page_form_ender[] PROGMEM = R"=====(
 </form>
 )=====";
 
-void WebHandler::renderAppDebugInfo()
-{
-	WiFiClient client = httpServer.client();
+void WebHandler::renderAppDebugInfo() {
+	WiFiClient &client = httpServer.client();
 	CP(FPSTR(debug_page_form_extra));
 	int ang1, ang2;
 	the_damper.get_servo_angles(ang1, ang2);
 	client.printf("Closed: <input type=\"number\" min=\"0\" max=\"180\" name=\"ang1\" size=\"4\" value=\"%d\">\r\n", ang1);
 	client.printf("Open: <input type=\"number\" min=\"0\" max=\"180\" name=\"ang2\" size=\"4\" value=\"%d\">\r\n", ang2);
 	CP(FPSTR(debug_page_form_ender));
-}
-
-void WebHandler::handleAppSettings()
-{
-
 }

@@ -25,7 +25,6 @@ public:
 
     void registerAppRoutes() override;
 	void renderAppDebugInfo() override;
-	void handleAppSettings() override;
 
 private:
 	DataSaver *appDataSaver;
