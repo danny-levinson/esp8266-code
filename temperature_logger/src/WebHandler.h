@@ -25,13 +25,16 @@ public:
 
     void registerAppRoutes() override;
 	void renderAppDebugInfo() override;
-	void handleAppSettings() override;
 
 private:
 	DataSaver *appDataSaver;
 	struct {
-		int ang1, ang2;
+		int calib;
 	} appData;
+
+	void temperaturesSendPage();
+	void configSendPage();
+	void configSaveData();
 };
 
 

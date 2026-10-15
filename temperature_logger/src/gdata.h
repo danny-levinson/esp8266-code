@@ -10,7 +10,7 @@
 
 // ui state data, defined in websocket.cpp, initialised from file system file
 
-extern int g_offset, g_tzone, g_dst;
+//extern int g_offset, g_tzone, g_dst;  - now declared/defined in common
 
 
 struct g_data_struct {

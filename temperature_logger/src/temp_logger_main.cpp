@@ -4,13 +4,21 @@
 
 
 #include "StandardHelpers.h"
+#include "temperature_logger.h"
 #include "WebHandler.h"
 #include "WebSocket.h"
 
-#include "app_code.h"
 
-#define DEBUG 2			// override default of 1 for just this file
-
+/*
+ * Functions of this temperature logger application:
+ * - read temperature from the peripheral at regular intervals and save in memory
+ * - when enough temperatures have been read, save them to a file
+ * - on demand, deliver files, or info about files to a client over local internet
+ * - on demand, deliver data for drawing a temperature graph
+ * - establish communication with a switch (e.g. for a fan or heater)
+ * - according to preset limits, send on/off commands to the switch
+ * - allow for changes to the preset limits
+ */
 
 
 /*
@@ -52,11 +60,11 @@ void setup() {
     my_webhandler = new WebHandler(hostnamepfx);
     my_socketHandler = new WebSocketApp();
 	standardhelpers.setup(my_webhandler, my_socketHandler, textname, hostnamepfx, false);
-	the_app_code.setupAppCode();
+	the_temperature_logger.setupTemperatureLogger();					// also sets up sensor handling
 }
 
 void loop() {							// will have to add morse.update()
 	standardhelpers.loopBegin();
-	the_app_code.loopAppCode();
+	the_temperature_logger.loopTemperatureLogger();
 	standardhelpers.loopEnd();
 }
