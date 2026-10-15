@@ -11,21 +11,15 @@
 #include "SerialDebugHelper.h"
 #include "ArduinoJson.h"
 
-
 #include "FileSys.h"
-//#include "damper.h"
+#include "CommonGlobals.h"
+
 #include "gdata.h"
 
 
 static bool data_was_initialised = false;
 static String datafilename = "/gdata";
 
-
-void WebSocketApp::getTimeAdjustmentParameters(int &tz, int &dst, int &offst) {
-	tz = g_tzone;
-	dst = g_dst;
-	offst = g_offset;
-}
 
 bool WebSocketApp::restoreDataFromFile() {
     File f = FileSys.open(datafilename+".dat", "r");
@@ -54,7 +48,8 @@ bool WebSocketApp::restoreDataFromFile() {
 		if (g_data_with_names[gdptr].gvar == NULL) gdptr = 0;
     }
     data_was_initialised = true;
-    SPRNTF(1, "restored data from file, offset %d, tzone: %d, dst: %d\n", g_offset, g_tzone, g_dst); // @suppress("Method cannot be resolved")
+    common_globals.restore();			// override values of time modifiers from common repository
+    SPRNTF(1, "restored data from file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst); // @suppress("Method cannot be resolved")
    	return true;
 }
 
@@ -70,20 +65,21 @@ void WebSocketApp::saveDataToFile() {
 	if (FileSys.exists(datafilename+".dat")) FileSys.rename(datafilename+".dat", datafilename+".bkp");
 	FileSys.rename(datafilename+".new", datafilename+".dat");
 	data_was_initialised = true;
-    SPRNTF(1, "saved data to file, offset %d, tzone: %d, dst: %d\n", g_offset, g_tzone, g_dst);
+    SPRNTF(1, "saved data to file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst);
 	SPRTLN(1, "data saved to file");
+	common_globals.save();				// save time mods, etc, to the common repository
 	restoreDataFromFile();
 }
 
 // definitions of global constants declared in gdata.h & set by ui; initialized from file system file
 
-int g_offset, g_tzone, g_dst, g_manual, g_damperopen;
+int g_manual, g_damperopen;
 
 
 g_data_struct g_data_with_names[] = {
-	&g_offset,       "offset",
-	&g_tzone,        "tzone",
-	&g_dst,          "dst",
+	&cg_offset,       "offset",
+	&cg_tzone,        "tzone",
+	&cg_dst,          "dst",
 	&g_manual,		 "manual",
 	&g_damperopen,	 "damperopen",
 	NULL, NULL
