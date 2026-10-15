@@ -137,19 +137,6 @@ void WebSocketApp::setVarByName(char *varname, int varval, int radio) {
 	SPRTLN(1, String("gvar matching '")+varname+"' not found");
 }
 
-void WebSocketApp::do_activatemanual(uint8_t clientnum) { // @suppress("Member declaration not found")
-	StaticJsonDocument<100> jsonBuffer;     // .add fails silently if space is insufficient
-	JsonObject root = jsonBuffer.createNestedObject();
-	//root["seqNum"] = seqnum;
-	root["activatemanual"] = "1";
-	//SPRNTF(1, "jsonBuffer usage: %d\r\n", jsonBuffer.memoryUsage()); // last measured at 50
-	String jsonout;
-	serializeJson(root, jsonout);
-	//SPRTLN(1, "sent bytes: "+String(jsonout.length())); // last measured at 31
-	wsSend(clientnum, jsonout.c_str(), jsonout.length());
-	g_manual = true;
-	saveDataToFile();
-}
 
 
 void WebSocketApp::sendInitData(uint8_t clientnum) {
@@ -171,6 +158,20 @@ void WebSocketApp::sendInitData(uint8_t clientnum) {
 	wsSend(clientnum, jsonout.c_str(), jsonout.length());
 }
 
+
+void WebSocketApp::do_activatemanual(uint8_t clientnum) { // @suppress("Member declaration not found")
+	StaticJsonDocument<100> jsonBuffer;     // .add fails silently if space is insufficient
+	JsonObject root = jsonBuffer.createNestedObject();
+	//root["seqNum"] = seqnum;
+	root["activatemanual"] = "1";
+	//SPRNTF(1, "jsonBuffer usage: %d\r\n", jsonBuffer.memoryUsage()); // last measured at 50
+	String jsonout;
+	serializeJson(root, jsonout);
+	//SPRTLN(1, "sent bytes: "+String(jsonout.length())); // last measured at 31
+	wsSend(clientnum, jsonout.c_str(), jsonout.length());
+	g_manual = true;
+	saveDataToFile();
+}
 
 void WebSocketApp::do_activateauto(uint8_t clientnum) {
 	StaticJsonDocument<100> jsonBuffer;     // .add fails silently if space is insufficient
