@@ -59,7 +59,3 @@ void WebHandler::renderAppDebugInfo()
 //	CP(FPSTR(debug_page_form_ender));
 }
 
-void WebHandler::handleAppSettings()
-{
-
-}
