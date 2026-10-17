@@ -25,7 +25,7 @@ WebSocketBase::WebSocketBase(uint16_t port)
 
 void WebSocketBase::setupWebsocket()
 {
-	restoreDataFromFile();					// state data
+	common_globals.restoreDataFromFile();					// state data
     webSocket.begin();
     webSocket.onEvent([this](uint8_t num, WStype_t type, uint8_t *payload, size_t len) {
         String msg;

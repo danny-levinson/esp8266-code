@@ -12,8 +12,6 @@
 #include "SerialDebugHelper.h"
 #include "DelayTimings.h"
 #include "NTPtime.h"
-//#include "gdata.h"
-//#include "tempfiles.h"
 #include "MsgLogHandler.h"
 
 

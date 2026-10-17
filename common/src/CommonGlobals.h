@@ -28,8 +28,24 @@ public:
 	CommonGlobals();
 	bool save();
 	bool restore();
+
+// utilities
+	bool dataWasInitialised();
+	bool restoreDataFromFile();
+	void saveDataToFile();
+	void deleteDataFromFile();
+	void showGVars();
 };
 
 extern CommonGlobals common_globals;
+
+
+struct g_data_struct {
+	int *gvar;
+	char *uiname;
+};
+
+extern g_data_struct g_data_with_names[];
+
 
 #endif /* COMMON_SRC_COMMONGLOBALS_H_ */

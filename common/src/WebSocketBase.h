@@ -20,10 +20,6 @@ public:
     void setupWebsocket();
     void loopWebsocket();
 
-    virtual bool restoreDataFromFile() = 0;		// state data
-    virtual void saveDataToFile() = 0;
-    virtual void deleteDataFromFile() = 0;
-
 protected:
     WebSocketsServer webSocket;
 

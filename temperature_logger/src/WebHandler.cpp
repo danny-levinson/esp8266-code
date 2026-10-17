@@ -15,7 +15,6 @@
 
 #include "temperature_logger.h"
 #include "temperature_filing.h"
-#include "gdata.h"
 
 static float g_calib = 0.0;
 

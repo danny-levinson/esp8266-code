@@ -17,9 +17,6 @@ public:
     WebSocketApp(uint16_t port = 81);
 
 protected:
-    bool restoreDataFromFile() override;
-    void saveDataToFile() override;
-    void deleteDataFromFile() override;
 
     void handleAppWebSocketMessage(uint8_t num,
                                    WStype_t type,
@@ -35,7 +32,6 @@ private:
 
 // helpers
     void setVarByName(char *varname, int varval, int radio);
-    void showGVars();
 };
 
 

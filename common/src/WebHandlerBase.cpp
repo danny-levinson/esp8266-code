@@ -487,7 +487,7 @@ void WebHandlerBase::saveSettings() {
 	} else if (action.equals("Reset everything")) {
 		MSG("resetting everything");
 		net_settings->remove();
-		webSocketHandler->deleteDataFromFile();
+		common_globals.deleteDataFromFile();
 		httpServer.send(200, "text/plain", "Net settings have been deleted");	// (except for the bkp settings file)
 		delay(1000);
 		wifi_settings_changed();

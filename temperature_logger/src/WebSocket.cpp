@@ -14,64 +14,9 @@
 #include "FileSys.h"
 #include "CommonGlobals.h"
 
-#include "gdata.h"
 
 
-static bool data_was_initialised = false;
-static String datafilename = "/gdata";
-
-
-bool WebSocketApp::restoreDataFromFile() {
-    File f = FileSys.open(datafilename+".dat", "r");
-    if (! f) {
-    	SPRTLN(1, "can't open .dat file for reading"); // @suppress("Method cannot be resolved")
-    	data_was_initialised = false;
-    	return false;
-    }
-    while (f.available() > 0) {
-    	static int gdptr = 0;
-    	String s = f.readStringUntil('\0');
-    	int d = 0;
-    	f.readBytes((char*)&d, sizeof(int));
-    	//SPRNTF(1, "got '%s' = %d (%d)\r\n", s.c_str(), d, f.available());
-		if (s.equals(g_data_with_names[gdptr].uiname)) {
-			*g_data_with_names[gdptr++].gvar = d;		// this should usually work
-		} else {
-			// otherwise, it's linear search
-			for (gdptr=0; g_data_with_names[gdptr].gvar != NULL; gdptr++) {
-				if (s.equals(g_data_with_names[gdptr].uiname)) {
-					*g_data_with_names[gdptr++].gvar = d;
-					break;
-				}
-			}
-		}
-		if (g_data_with_names[gdptr].gvar == NULL) gdptr = 0;
-    }
-    data_was_initialised = true;
-    common_globals.restore();			// override values of time modifiers from common repository
-    SPRNTF(1, "restored data from file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst); // @suppress("Method cannot be resolved")
-   	return true;
-}
-
-void WebSocketApp::saveDataToFile() {
-    File f = FileSys.open(datafilename+".new", "w");
-	for (int i=0; g_data_with_names[i].gvar != NULL; i++) {
-		f.write((char*)g_data_with_names[i].uiname);
-		f.write((char)'\0');		// write doesn't null terminate strings so we write a (char)0 [not (char*)]
-		f.write((char*)(&*g_data_with_names[i].gvar), sizeof(int));
-	}
-	f.close();
-	if (FileSys.exists(datafilename+".bkp")) FileSys.remove(datafilename+".bkp");
-	if (FileSys.exists(datafilename+".dat")) FileSys.rename(datafilename+".dat", datafilename+".bkp");
-	FileSys.rename(datafilename+".new", datafilename+".dat");
-	data_was_initialised = true;
-    SPRNTF(1, "saved data to file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst);
-	SPRTLN(1, "data saved to file");
-	common_globals.save();				// save time mods, etc, to the common repository
-	restoreDataFromFile();
-}
-
-// definitions of global constants declared in gdata.h & set by ui; initialized from file system file
+// definitions of global constants declared in CommonGlobals & set by ui; initialized from file system file
 
 int g_manual, g_damperopen;
 
@@ -87,27 +32,6 @@ g_data_struct g_data_with_names[] = {
 
 //extern int real_demolevel;
 
-
-// we don't delete the .bkp file though
-void WebSocketApp::deleteDataFromFile() {
-	if (FileSys.exists(datafilename+".dat")) {
-		FileSys.remove(datafilename+".dat");
-	}
-	data_was_initialised = false;
-}
-
-void WebSocketApp::showGVars() {
-	char outstr[120] = "", *p = outstr;
-	for (int i=0; g_data_with_names[i].gvar != NULL; i++) {
-		sprintf(p, "%s=%d, ", g_data_with_names[i].uiname, *g_data_with_names[i].gvar);
-		p += strlen(p);
-		if (p - outstr > 50) {
-			SPRTLN(1, outstr); p = outstr; outstr[0] = '\0';
-		}
-	}
-	if (p != outstr) SPRTLN(1, outstr);
-	saveDataToFile();
-}
 
 // Special handling for radio buttons as we haven't figured out how
 // to make javascript/jquery trigger events for consequent changes.
@@ -129,7 +53,7 @@ void WebSocketApp::setVarByName(char *varname, int varval, int radio) {
 					}
 				}
 			}
-			saveDataToFile();
+			common_globals.saveDataToFile();
 			return;
 		}
 	}
@@ -143,7 +67,7 @@ void WebSocketApp::sendInitData(uint8_t clientnum) {
 	JsonObject root = jsonBuffer.createNestedObject();
 	JsonObject data = jsonBuffer.createNestedObject();
 	int i;
-	if (data_was_initialised) {
+	if (common_globals.dataWasInitialised()) {
 		for (i=0; g_data_with_names[i].gvar != NULL; i++) {
 			data[g_data_with_names[i].uiname] = *g_data_with_names[i].gvar;
 		}
@@ -193,9 +117,7 @@ static void parseSocketChangePayload(const char *payload, char **varname, int &v
 }
 
 
-WebSocketApp::WebSocketApp(uint16_t port)
-    : WebSocketBase(port)
-{
+WebSocketApp::WebSocketApp(uint16_t port) : WebSocketBase(port) {
 }
 
 void WebSocketApp::handleAppWebSocketMessage(uint8_t num,
@@ -214,7 +136,7 @@ void WebSocketApp::handleAppWebSocketMessage(uint8_t num,
 		if (varname == NULL) { SPRTLN(1, "payload not found"); }
 		else setVarByName(varname, varval, radio);
 	} else  if (strstr(payload.c_str(), "/demo") != NULL) {
-		showGVars();
+		common_globals.showGVars();
 		//do_demo();
 	} else {
 		SPRTLN(1, "bad socket request: "+payload);
