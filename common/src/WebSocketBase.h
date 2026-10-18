@@ -36,6 +36,10 @@ protected:
     void wsSend(uint8_t num, const String &msg);
     void wsSend(uint8_t num, const char *msg, int len);
 
+    //Utilities
+    char *getStrSocketPayloadParam(const char *payload, char *param, char *outstr, int outlen);
+    void parseSocketChangePayload(const char *payload, char **varname, int &varval, int &radio);
+
 private:
     void sendTimeData(uint8_t num);
 };

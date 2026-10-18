@@ -53,38 +53,6 @@ void WebSocketApp::sendInitData(uint8_t clientnum) {
 
 
 
-static char *getStrSocketPayloadParam(const char *payload, char *param, char *outstr, int outlen) {
-  char pstr[40];
-  sprintf(pstr, "?%s=", param);
-  char *p = strstr((char*)payload, pstr);
-  if (p == NULL) {
-    sprintf(pstr, "&%s=", param);
-    p = strstr(payload, pstr);
-  }
-  if (p == NULL) return 0;
-  p += strlen(param) + 2;
-  char *q = strchr(p, '&');
-  if (q != NULL) {
-	  int l = min(outlen, q-p);
-	  strncpy(outstr, p, q-p);
-	  outstr[q-p] = '\0';
-  } else {
-	  strncpy(outstr, p, outlen);
-	  outstr[outlen] = '\0';
-  }
-  return outstr;
-}
-
-static void parseSocketChangePayload(const char *payload, char **varname, int &varval, int &radio) {
-  const int outlen = 40;
-  static char outstr[outlen+1];
-  char *tstr = getStrSocketPayloadParam(payload, "t", outstr, outlen);
-  radio = tstr != NULL && strcmp(tstr, "radio") == 0;
-  char *vstr = getStrSocketPayloadParam(payload, "v", outstr, outlen);
-  varval = (strcmp(vstr, "true") == 0) ? 1 : (strcmp(vstr, "false") == 0) ? 0 : atoi(vstr);
-  (*varname) = getStrSocketPayloadParam(payload, "n", outstr, outlen);
-}
-
 
 WebSocketApp::WebSocketApp(uint16_t port) : WebSocketBase(port) {
 }
