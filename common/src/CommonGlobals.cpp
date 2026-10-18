@@ -119,3 +119,35 @@ void CommonGlobals::showGVars() {
 	if (p != outstr) SPRTLN(1, outstr);
 	saveDataToFile();
 }
+
+
+// Particularly for use when the WebSocket sends us a message that
+// a variable has changed.
+
+// Special handling for radio buttons as we haven't figured out how
+// to make javascript/jquery trigger events for consequent changes.
+// NOTE: for this to work, radio button id's must be of the form 'xx..xd'
+// where the last character is the only thing that changes between
+// buttons in the group.
+
+void CommonGlobals::setVarByName(char *varname, int varval, int radio) {
+	for (int i=0; g_data_with_names[i].gvar != NULL; i++) {
+		if (strcmp(varname, g_data_with_names[i].uiname) == 0) {
+			*(g_data_with_names[i].gvar) = varval;
+			SPRTLN(1, String("set ")+varname+" to "+String(varval));
+			if (radio) {
+				for (int j=0; g_data_with_names[j].gvar != NULL; j++) {
+					int n = strlen(varname) - 1;
+					if (j != i && strncmp(varname, g_data_with_names[j].uiname, n) == 0) {
+						*(g_data_with_names[j].gvar) = 0;
+						SPRTLN(1, String("set ")+g_data_with_names[j].uiname+" to 0");
+					}
+				}
+			}
+			common_globals.saveDataToFile();
+			return;
+		}
+	}
+	SPRTLN(1, String("gvar matching '")+varname+"' not found");
+}
+

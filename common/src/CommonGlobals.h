@@ -35,6 +35,8 @@ public:
 	void saveDataToFile();
 	void deleteDataFromFile();
 	void showGVars();
+	void setVarByName(char *varname, int varval, int radio);
+
 };
 
 extern CommonGlobals common_globals;

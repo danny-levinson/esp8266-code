@@ -25,8 +25,6 @@ protected:
 private:
     void sendInitData(uint8_t num);
 
-// helpers
-    void setVarByName(char *varname, int varval, int radio);
 };
 
 

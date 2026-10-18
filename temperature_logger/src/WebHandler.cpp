@@ -295,7 +295,7 @@ void WebHandler::configSendPage() {
 	while (f.find('\n')) f0lines += 1;
 	f.close();
 	//CPF("f0lines: "); CPN(f0lines);
-	CPNF("<textarea name=\"textbox\" cols=\"120\" rows=\"11\">");		// yields 12 lines in box
+	CPNF("<textarea autocomplete=\"off\" name=\"textbox\" cols=\"120\" rows=\"11\">");		// yields 12 lines in box
 	char b[120];
 	if (f0lines < 50) {
 		f = open_message_log_file(1);

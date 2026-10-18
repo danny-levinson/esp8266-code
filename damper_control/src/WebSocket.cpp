@@ -32,37 +32,6 @@ g_data_struct g_data_with_names[] = {
 	NULL, NULL
 };
 
-//extern int real_demolevel;
-
-
-// Special handling for radio buttons as we haven't figured out how
-// to make javascript/jquery trigger events for consequent changes.
-// NOTE: for this to work, radio button id's must be of the form 'xx..xd'
-// where the last character is the only thing that changes between
-// buttons in the group.
-
-void WebSocketApp::setVarByName(char *varname, int varval, int radio) {
-	for (int i=0; g_data_with_names[i].gvar != NULL; i++) {
-		if (strcmp(varname, g_data_with_names[i].uiname) == 0) {
-			*(g_data_with_names[i].gvar) = varval;
-			SPRTLN(1, String("set ")+varname+" to "+String(varval));
-			if (radio) {
-				for (int j=0; g_data_with_names[j].gvar != NULL; j++) {
-					int n = strlen(varname) - 1;
-					if (j != i && strncmp(varname, g_data_with_names[j].uiname, n) == 0) {
-						*(g_data_with_names[j].gvar) = 0;
-						SPRTLN(1, String("set ")+g_data_with_names[j].uiname+" to 0");
-					}
-				}
-			}
-			common_globals.saveDataToFile();
-			return;
-		}
-	}
-	SPRTLN(1, String("gvar matching '")+varname+"' not found");
-}
-
-
 
 void WebSocketApp::sendInitData(uint8_t clientnum) {
 	StaticJsonDocument<1500> jsonBuffer;     // .add fails silently if space is insufficient
@@ -193,7 +162,7 @@ void WebSocketApp::handleAppWebSocketMessage(uint8_t num,
 		char *varname; int varval, radio;
 		parseSocketChangePayload(payload.c_str(), &varname, varval, radio);
 		if (varname == NULL) { SPRTLN(1, "payload not found"); }
-		else setVarByName(varname, varval, radio);
+		else common_globals.setVarByName(varname, varval, radio);
 	} else  if (strstr(payload.c_str(), "/activatemanual") != NULL) {
 		SPRTLN(1, "manualactive was clicked");
 		do_activatemanual(num);
