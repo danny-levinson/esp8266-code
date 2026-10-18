@@ -34,6 +34,8 @@ protected:
                                       const String &msg);
 
     void sendInitData(uint8_t num);
+    void respondToButton(uint8_t clientnum, char *b_name, char *b_val, int &g_vbl, int g_val);
+
 
     void wsSend(uint8_t num, const String &msg);
     void wsSend(uint8_t num, const char *msg, int len);
