@@ -12,7 +12,8 @@
 #include "WebSocketBase.h"
 
 
-class WebSocketApp : public WebSocketBase {
+class WebSocketApp : public WebSocketBase
+{
 public:
     WebSocketApp(uint16_t port = 81);
 
@@ -22,16 +23,11 @@ protected:
                                    WStype_t type,
                                    String &msg) override;
 
-
 private:
-    void sendInitData(uint8_t num);
     void do_activatemanual(uint8_t num);
     void do_activateauto(uint8_t num);
     void do_opendamper(uint8_t num);
     void do_closedamper(uint8_t num);
-
-// helpers
-    void setVarByName(char *varname, int varval, int radio);
 };
 
 

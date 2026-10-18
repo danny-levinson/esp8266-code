@@ -43,6 +43,86 @@ void WebSocketBase::setupWebsocket()
     });
 }
 
+/*
+ * Handles an assortment of common commands for setting/retrieving
+ * javascript variable data
+ */
+bool WebSocketBase::handleCommonWebSocketMessage(uint8_t num,
+                                                 WStype_t type,
+                                                 const String &msg)
+{
+	String pfx = "["+String(num)+"] ";		// num is the websocket connection id
+	switch (type) {
+	default:
+		MSG(pfx+"type: "+String(type));
+		return false;
+
+	case WStype_CONNECTED: {               // if a new websocket connection is established
+        IPAddress ip = webSocket.remoteIP(num);
+        MSG(pfx+"Connected from "+String(ip[0])+"."+String(ip[1])+"."+String(ip[2])+"."+String(ip[3])+" url: "+msg);
+    	}
+		wsSend(num, "hello from base");
+    	return true;
+
+	case WStype_TEXT:
+        if (msg == "ping") {
+        	wsSend(num, "pong");
+        	return true;
+        }
+        if (strstr(msg.c_str(), "/updatetime") != NULL) {
+        	sendTimeData(num);
+        	return true;
+        }
+        if (strstr(msg.c_str(), "/initialise") != NULL) {
+    		//SPRTLN(1, pfx+"initialising: "+(char*)payload);
+    		sendInitData(num);
+    		return true;
+    	}
+        if (strstr(msg.c_str(), "/change?") != NULL) {				// handle changes to global (gdata) variables
+    		SPRTLN(1, pfx+"change: "+msg.c_str());
+    		char *varname; int varval, radio;
+    		parseSocketChangePayload(msg.c_str(), &varname, varval, radio);
+    		if (varname == NULL) { SPRTLN(1, "message not found"); }
+    		else common_globals.setVarByName(varname, varval, radio);
+    		return true;
+        }
+        if (strstr(msg.c_str(), "/demo") != NULL) {
+        	common_globals.showGVars();
+        	//do_demo();
+        	return true;
+        }
+        return false;
+
+    case WStype_DISCONNECTED:             // if the websocket is disconnected
+    	MSG(pfx+"Disconnected!\n");
+    	return true;
+    }
+	return false;
+}
+
+/*
+ * Expects particular handling by the html & javascript code
+ */
+void WebSocketBase::sendInitData(uint8_t clientnum) {
+	StaticJsonDocument<1500> jsonBuffer;     // .add fails silently if space is insufficient
+	JsonObject root = jsonBuffer.createNestedObject();
+	JsonObject data = jsonBuffer.createNestedObject();
+	int i;
+	if (common_globals.dataWasInitialised()) {
+		for (i=0; g_data_with_names[i].gvar != NULL; i++) {
+			data[g_data_with_names[i].uiname] = *g_data_with_names[i].gvar;
+		}
+	}
+	root["initData"] = data;
+	//SPRNTF(1, "jsonBuffer usage: %d for %d items\r\n", jsonBuffer.memoryUsage(), i); // last measured at 1034
+	String jsonout;
+	serializeJson(root, jsonout);
+	//SPRTLN(1, "json string: "+jsonout);
+	SPRTLN(1, "sent bytes: "+String(jsonout.length())); // last measured at 261
+	wsSend(clientnum, jsonout.c_str(), jsonout.length());
+}
+
+
 void WebSocketBase::loopWebsocket()
 {
 	webSocket.loop();
@@ -70,41 +150,6 @@ void WebSocketBase::sendTimeData(uint8_t clientnum) {
 	serializeJson(root, jsonout);
 	//MSG("sent bytes: "+String(jsonout.length())); // last measured at 31
 	wsSend(clientnum, jsonout.c_str(), jsonout.length());
-}
-
-bool WebSocketBase::handleCommonWebSocketMessage(uint8_t num,
-                                                 WStype_t type,
-                                                 const String &msg)
-{
-	String pfx = "["+String(num)+"] ";		// num is the websocket connection id
-	switch (type) {
-	default:
-		MSG(pfx+"type: "+String(type));
-		return false;
-
-	case WStype_CONNECTED: {               // if a new websocket connection is established
-        IPAddress ip = webSocket.remoteIP(num);
-        MSG(pfx+"Connected from "+String(ip[0])+"."+String(ip[1])+"."+String(ip[2])+"."+String(ip[3])+" url: "+msg);
-    	}
-		wsSend(num, "hello from base");
-    	return true;
-
-	case WStype_TEXT:
-        if (msg == "ping") {
-        	wsSend(num, "pong");
-        	return true;
-        }
-        if (strstr(msg.c_str(), "/updatetime") != NULL) {
-        	sendTimeData(num);
-        	return true;
-        }
-        return false;
-
-    case WStype_DISCONNECTED:             // if the websocket is disconnected
-    	MSG(pfx+"Disconnected!\n");
-    	return true;
-    }
-	return false;
 }
 
 void WebSocketBase::wsSend(uint8_t num, const String &msg)

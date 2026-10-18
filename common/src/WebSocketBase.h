@@ -33,6 +33,8 @@ protected:
                                       WStype_t type,
                                       const String &msg);
 
+    void sendInitData(uint8_t num);
+
     void wsSend(uint8_t num, const String &msg);
     void wsSend(uint8_t num, const char *msg, int len);
 
