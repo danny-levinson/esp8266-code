@@ -16,8 +16,8 @@
 
 
 #define TSBUFFERSIZE 10                   // write to disk every 10 entries (i.e. 10 minutes)
-struct qentry tsbuffer[TSBUFFERSIZE];
-int tsbuffercnt = 0;
+static struct qentry tsbuffer[TSBUFFERSIZE];
+static int tsbuffercnt = 0;
 
 // replace any temperature readings without ntp times
 
@@ -115,6 +115,10 @@ void TemperatureStore::pushRecord(uint8_t flags, ulong ptime, float tmp) {
 
 int TemperatureStore::availableInStore() {
   return tsbuffercnt;
+}
+
+void TemperatureStore::flush() {
+	flushBufferToFile();
 }
 
 // num *must* be less than or equal to tsbuffercnt

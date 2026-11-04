@@ -18,6 +18,7 @@ public:
 
 	int availableInStore();
 	void copyFromStore(qentry *qe, int num);
+	void flush();
 
 private:
 	void pushRecord(uint8_t flags, ulong ptime, float tmp);
