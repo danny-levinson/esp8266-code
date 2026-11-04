@@ -48,7 +48,8 @@ const char* textname = "Temperature Logger Test";		// device type, used for debu
 const char* hostnamepfx = "TemperatureLogger";
 const char* textname = "Temperature Logger";
 #endif
-
+const char* hostType = "HAW Temperature Monitor";
+const char* hostLocation = "diningroom";
 
 static StandardHelpers standardhelpers;
 
@@ -58,12 +59,13 @@ class WebSocketApp *my_socketHandler = 0;
 
 void setup() {
     my_webhandler = new WebHandler(hostnamepfx);
+    my_webhandler->setIdentity(hostType, hostLocation);
     my_socketHandler = new WebSocketApp();
 	standardhelpers.setup(my_webhandler, my_socketHandler, textname, hostnamepfx, false);
 	the_temperature_logger.setupTemperatureLogger();					// also sets up sensor handling
 }
 
-void loop() {							// will have to add morse.update()
+void loop() {
 	standardhelpers.loopBegin();
 	the_temperature_logger.loopTemperatureLogger();
 	standardhelpers.loopEnd();

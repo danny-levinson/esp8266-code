@@ -34,6 +34,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/OneWire}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/DallasTemperature}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/log4Esp/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266SSDP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/CRC32/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.cpp.sketch.input.1889774642" name="CPP source files" superClass="io.sloeber.compiler.cpp.sketch.input"/>
 							</tool>
@@ -54,6 +56,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/OneWire}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/DallasTemperature}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/log4Esp/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266SSDP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/CRC32/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.c.sketch.input.1878009688" name="C Source Files" superClass="io.sloeber.compiler.c.sketch.input"/>
 							</tool>
@@ -74,6 +78,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/OneWire}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/DallasTemperature}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/log4Esp/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266SSDP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/CRC32/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.S.sketch.input.2099612027" name="Assembly source files" superClass="io.sloeber.compiler.S.sketch.input"/>
 							</tool>
@@ -114,7 +120,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="libraries/log4Esp/travis|libraries/log4Esp/docs|libraries/OneWire/docs|libraries/OneWire/util|libraries/WebSockets/travis|libraries/LittleFS/lib|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="libraries/CRC32/docs|libraries/log4Esp/travis|libraries/log4Esp/docs|libraries/OneWire/docs|libraries/OneWire/util|libraries/WebSockets/travis|libraries/LittleFS/lib|libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries/**/._*|libraries/?*/utility/*/*" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
