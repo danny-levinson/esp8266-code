@@ -13,6 +13,7 @@
 #include "DelayTimings.h"
 #include "NTPtime.h"
 #include "MsgLogHandler.h"
+#include "CrashLog.h"
 
 
 static const char *log_file_name = "/messages.log";
@@ -146,14 +147,17 @@ void setup_message_logging() {
 //	setup_file_system();
 	//FileSys.remove(log_file_name);		// start fresh if needed for testing
 	RotatingFileAppender *rfa = new RotatingFileAppender(log_file_name, 10*1024, 3, true);
+	//MSGV("Logging starting 0");			// not logged (logging not yet open)
 	TL_Logger.getAppender().push_back(rfa);
+	//MSGV("Logging starting 1");			// logged without timestamp
 	add_timestamp_formatter_to_logger();
+	//MSGV("Logging starting 2");			// overwrites "Open log file ... successful" in RotatingFileAppender::getFile
 	rfa->setLogger(TL_Logger);
+	MSGV("Logging started");
 	//SPRTLN(1, "");
 	//run_seek_test();
 	//run_small_write_test();
 	init_timings();
 #endif
 	//Serial.println("hello14...");
-	MSGV("Logging started");
 }
