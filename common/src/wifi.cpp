@@ -55,6 +55,12 @@ States:
 const uint16_t wifi::DNS_PORT = 53;
 
 static wifi *wifi_instance = nullptr;
+
+/*
+ * Signals connection state of WiFi on channel 1.
+ * 'e' -> connected. See state_table in getStateName()
+ * for more details.
+ */
 static MorseSignaller *morse_signaller = 0;
 
 
@@ -290,6 +296,8 @@ bool wifi::ssidVisible() {
 }
 
 // -------------------- FSM Core --------------------
+// (finite state machine)
+
 void wifi::fsmTick() {
     // Always run WebHandler
     the_webhandler->loopWebhandling();
