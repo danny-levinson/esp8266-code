@@ -30,6 +30,7 @@ public:
 	virtual bool restoreAppData() = 0;
 	bool saveLibraryData();
 	virtual bool saveAppData() = 0;
+	virtual void appLoopWebhandling() = 0;
 
 // utilities
 	WiFiClient &sendHeaderToClient(bool html = true, char *status = "200 OK");
@@ -40,7 +41,8 @@ protected:
 	ESP8266WebServer httpServer{80};
 
 	// Extension points for derived classes
-    virtual void registerAppRoutes() = 0;
+	virtual const char *getAppVersion() = 0;
+    virtual void registerAppRoutes(bool asStation) = 0;
     virtual void renderAppDebugInfo() = 0;
 
     // Optional WebSocket extension
@@ -52,7 +54,7 @@ protected:
     void handleCommonSettings();
     void handleFileUpload();
 
-    void handleDebugPage();      // parcels out responsibilities between base & app
+    void handleDebugPage();      // parcels out its responsibilities between base & app
 
     // WebSocket plumbing
     void wsSend(const char *msg);
@@ -61,6 +63,8 @@ protected:
 
 private:
     // Helper functions (that reference httpServer)
+    void getVersion();
+    const char *getBaseVersion();
     bool handleFileRead(String path);
     void handleNotFound(String path);
     void handleIgnore();
@@ -69,6 +73,7 @@ private:
     void debugSetLoopDelay();
     void debugGetFile();
     void debugPutFile();
+    void getWifiStrength();
     void saveSettings();			// may move up?
 
 
