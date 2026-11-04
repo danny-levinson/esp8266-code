@@ -4,6 +4,20 @@
 #include <pgmspace.h>
 #include "SerialDebugHelper.h"
 
+/*
+ * Morse is signalled on the internal LED.
+ * A single character represents a channel.
+ * Up to MAXCHANNELS channels' characters are sent in succession
+ * followed by a word space and then repeated ad nauseam.
+ *
+ * Currently assigned channels:
+ * 		0 - MorseSignalController itself, success -> 'e'
+ * 		1 - WiFi state, 'e' -> connected
+ * 		2
+ * 		3
+ * 	'z' indicates an unassigned channel
+ */
+
 #define DEBUG 1
 #define MORSE_MAX_MSG_LEN 15                   // buffer size, must be greater than MAXCHANNELS below
 
@@ -215,7 +229,9 @@ const char* const MorseSender::table[] PROGMEM = {
 
 // ---------------------------------------------------------------------
 
-
+/*
+ * Signals its own state on channel '0'. 'e' indicates success, 'z' channel unassigned
+ */
 #define MAXCHANNELS 4				// limits the number of channels
 
 class MorseSignalController {
@@ -225,7 +241,7 @@ public:
 		{
 			morseSender = new MorseSender(pin, activeLow, charWPM, effWPM);
 			morseSender->begin();
-			SignalChannels[0] = 'a';
+			SignalChannels[0] = 'e';
 			for (int i=1; i<MAXCHANNELS; i++) SignalChannels[i] = 'z';		// uninitialized channels
 			SignalChannels[MAXCHANNELS] = '\0';
 			setMessage();
