@@ -23,6 +23,7 @@
 #include "SerialDebugHelper.h"
 #include "WebSocketBase.h"
 
+static const char *baseVersion = "1.0";		// represents base part of version for entire common suite
 
 #define MSG(x) SPRTLN(1, x)
 
@@ -39,6 +40,7 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 		InitialFreeHeapSize = ESP.getFreeHeap();	// for future debugging
 		http_is_running = true;
 		//SPRNTF(1, "Starting HTTP...\r\n");
+		httpServer.on("/version", [this]() { this->getVersion(); });
 		httpServer.on("/setsettings", [this]() { this->saveSettings(); });
 		httpServer.on("/debug", HTTP_GET, [this]() { this->handleDebugPage(); });
 		httpServer.on("/dbgsettimemods", HTTP_GET, [this]() { this->debugSetTimeModifiers(); });
@@ -48,6 +50,7 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 				HTTP_POST,
 				[this]() { httpServer.send(200, "text/plain", ""); },
 				[this]() { this->debugPutFile(); });
+		httpServer.on("/getwifistrength", HTTP_GET, [this]() { this->getWifiStrength(); });
 		httpServer.on("/settings", HTTP_GET, [this]() { this->sendSettingsPage(); });
 		//HTTP.on("/hotspot-detect.html", [this]() { this->handle_ignore(); });
 		httpServer.on("/canonical.html", [this]() { this->handleIgnore(); });
@@ -64,6 +67,29 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 		restoreAppData();
 		if (webSocketHandler) webSocketHandler->setupWebsocket();
 	}
+}
+
+void WebHandlerBase::getVersion() {
+	const int maxlen = 20;
+	const char *V1 = getBaseVersion(), *V2 = getAppVersion();
+	char buf[maxlen+1];
+	strncpy(buf, V1, maxlen); buf[maxlen] = '\0';
+	int l = strlen(buf);
+	if (l < maxlen) {
+		strncpy(buf+l, ":", maxlen-l); buf[maxlen] = '\0'; l += 1;
+		strncpy(buf+l, V2, maxlen-l); buf[maxlen] = '\0';
+	}
+	httpServer.send(200, "text/plain", buf);
+}
+
+const char *WebHandlerBase::getBaseVersion() {
+	return baseVersion;
+}
+
+void WebHandlerBase::getWifiStrength() {
+	char buf[20];
+	sprintf(buf, "%d", WiFi.RSSI());
+	httpServer.send(200, "text/plain", buf);
 }
 
 
@@ -176,8 +202,8 @@ static char debug_page_form2[] PROGMEM = R"=====(
 </form>
 <hr/>
 <form autocomplete="off" method=GET action="dbgsettimemods">
-Local time modifiers:<br/>
-Universal&nbsp;time:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local&nbsp;time:&nbsp;%s
+<b>Local time modifiers:</b><br/>
+Universal&nbsp;time:&nbsp;%s [%ld]&nbsp;&nbsp;&nbsp;&nbsp; Local&nbsp;time:&nbsp;%s
 <br/>
 <label for="tzone" title="Specify the timezone in hours ahead of GMT">Time zone:
 <input type="number" value=%d id="tzone" name="tzone" min="-12" max="12" size="4"></label>
@@ -195,7 +221,7 @@ static char debug_page_form3[] PROGMEM = R"=====(
 </form>
 <hr/>
 <form autocomplete="off" method=GET action="dbgsetloopdelay">
-Recent loop times: 
+<b>Recent loop times</b>: 
 )=====";
 
 static char debug_page_form4[] PROGMEM = R"=====(
@@ -205,7 +231,7 @@ static char debug_page_form4[] PROGMEM = R"=====(
   <input class="button" type="submit" name="subaction" value="Restart" />
 </form>
 <hr/>
-Wifi performance monitoring<br/>
+<b>Wifi performance monitoring:</b><br/>
 )=====";
 
 static char debug_page_trailer[] PROGMEM = R"=====(
@@ -226,7 +252,9 @@ void WebHandlerBase::renderCommonDebugInfo() {
 		CPF("Up for: "); CP(millis());
 	} else {
 		char tmbuff[20];
-		CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
+		CPF("<b>Up since:</b> "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime));
+		CPF(" UTC ["); CP(uptime); CP("]");
+		CPF("&nbsp;&nbsp; ("); CP(millis()); CPF(" ms)");
 	}
 	CPF(",&nbsp;&nbsp;   FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(InitialFreeHeapSize); CPNF("</h4>");
 	CPF("<h5>");
@@ -244,11 +272,12 @@ void WebHandlerBase::renderCommonDebugInfo() {
 	}
 	common_globals.restore();
 	char tmsgbufgmt[40], tmsgbuflcl[40];
-	NTPtimeManager.getTimeString(40, tmsgbufgmt, NTPtimeManager.getEpoch());
+	long epoch = NTPtimeManager.getEpoch();
+	NTPtimeManager.getTimeString(40, tmsgbufgmt, epoch);
 	NTPtimeManager.getTimeString(40, tmsgbuflcl, NTPtimeManager.getAdjustedTime(cg_tzone, cg_dst, cg_offset));
 	SPRNTF(1, "Sending time data (hdlr): %d, %d, %d\n", cg_tzone, cg_dst, cg_offset);
 	client.printf_P(debug_page_form2,
-			tmsgbufgmt, tmsgbuflcl, cg_tzone, cg_dst ? "checked" : "", cg_offset);
+			tmsgbufgmt, epoch, tmsgbuflcl, cg_tzone, cg_dst ? "checked" : "", cg_offset);
 	CP(FPSTR(debug_page_form3));
 	float sum = 0, sumsq = 0, mean = 0, devn = 1; int n = 0, minn = 0, maxn = 0;
 	for (;;) {
@@ -533,7 +562,7 @@ void WebHandlerBase::setupWebhandling(bool as_station) {
 	static bool http_is_running = false;
 	if (! http_is_running) {
 		http_is_running = true;
-		registerAppRoutes();
+		registerAppRoutes(as_station);
 	}
 	DEBUG_WEBSOCKETS("websockets debugging is ON!");
 }
@@ -551,5 +580,6 @@ void WebHandlerBase::loopWebhandling() {
 		}
 		if (webSocketHandler) webSocketHandler->loopWebsocket();
 	}
+	appLoopWebhandling();
 	httpServer.handleClient();
 }
