@@ -5,6 +5,8 @@
  *      Author: Danny
  */
 
+#include <ESP8266SSDP.h>
+
 #include "MsgLogHandler.h"
 #include "FileSys.h"
 #include "NTPtime.h"
@@ -16,23 +18,59 @@
 #include "temperature_logger.h"
 #include "temperature_filing.h"
 
+static const char *appVersion = "1.0";	// represents app (non-common) part of version for entire app
+
 static float g_calib = 0.0;
 
-void WebHandler::registerAppRoutes() {
+void WebHandler::registerAppRoutes(bool asStation) {
 	httpServer.on("/index.html", HTTP_GET, [this]() { this->temperaturesSendPage(); });
 	httpServer.on("/temperatures.html", HTTP_GET, [this]() { this->temperaturesSendPage(); });
 	httpServer.on("/config.html", HTTP_GET, [this]() { this->configSendPage(); });
 	httpServer.on("/config", HTTP_GET, [this]() { this->configSendPage(); });
 	httpServer.on("/configset", HTTP_GET, [this]() { this->configSaveData(); });
 
-	//httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
+	httpServer.on("/sync", HTTP_GET, [this]() { this->syncBuffer(); });
+	httpServer.on("/listspiffstoclient", HTTP_GET, [this]() { this->listFilesToClient(); });	// obsolescent url
+	httpServer.on("/listfilestoclient", HTTP_GET, [this]() { this->listFilesToClient(); });
+	httpServer.on("/getrawfile", HTTP_GET, [this]() { this->getRawFile(); });
+	httpServer.on("/getrawfilecrc32", HTTP_GET, [this]() { this->getRawFileChecksum(); });
+	httpServer.on("/getfile", HTTP_GET, [this]() { this->getRawFile(); });			// obsolescent url (base uses /dbggetfile)
+
+	if (asStation) setupSSDP();
 }
 
+void WebHandler::appLoopWebhandling() {
+	sendNextFileChunk();				// does nothing unless file is being sent
+}
 
-WebHandler::WebHandler(const char *genericname) : WebHandlerBase(genericname) {
+const char *WebHandler::getAppVersion() {
+	return appVersion;
+}
+
+WebHandler::WebHandler(const char *genericname) : WebHandlerBase(genericname),
+		sendingFileTime(0), sendingFileSet(0) {
 	appDataSaver = new DataSaver(&appData, sizeof(appData), "/appconfig");
 }
 
+// allow us to be found using polling
+// via Simple Service Discovery Protocol
+
+void WebHandler::setupSSDP() {
+	Serial.printf("Starting SSDP...\n");
+	SSDP.setSchemaURL("description.xml");
+	SSDP.setHTTPPort(80);
+	char namebuf[160];
+	snprintf(namebuf, sizeof(namebuf), "%s (%s)", ident.getType(), ident.getLocation());	//e.g. "HAW Temperature Monitor (kitchen)"
+	SSDP.setName("Temperature Sensor");
+	SSDP.setSerialNumber("20261018202423");
+	SSDP.setURL("index.html");
+	SSDP.setModelName(namebuf);
+	SSDP.setModelNumber("20261018");
+	//SSDP.setModelURL("http://www.meethue.com");
+	SSDP.setManufacturer("HAW Industries");
+	//SSDP.setManufacturerURL("http://www.philips.com");
+	SSDP.begin();
+}
 
 bool WebHandler::saveAppData() {
 	appData.calib = g_calib;
@@ -49,7 +87,8 @@ bool WebHandler::restoreAppData() {
 
 static const char debug_page_form_extra[] PROGMEM = R"=====(
 <hr/>
-Temperature - %.3f &deg;C, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Delay - %u msecs
+<b>App data:</b><br/>
+Temperature: %.3f &deg;C, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Delay: %u msecs
 )=====";
 
 //static char debug_page_form_ender[] PROGMEM = R"=====(
@@ -367,3 +406,137 @@ void WebHandler::configSaveData() {
 	//send_reload_reply("/config.html");
 }
 
+void WebHandler::syncBuffer() {
+	the_temperature_logger.getStore().flush();
+	httpServer.send(200, "text/plain", "OK\n");
+}
+
+// list file system contents raw to client
+// note: doesn't seem to be any way of get a count of # of files
+
+void WebHandler::listFilesToClient() {
+	MSGV("Listing files to client");
+	WiFiClient client = httpServer.client();
+	client.println("HTTP/1.1 200 OK");
+	client.println("Content-Type: text/plain");
+	client.println("Connection: close");
+	client.println();
+
+	struct FSInfo filesysinfo;
+	if (! FileSys.info(filesysinfo)) {
+		MSGE("getting file system info failed");
+		client.println("No file system info available");
+		return;
+	}
+	int filecnt = 0;
+	Dir dir = FileSys.openDir("/");
+	char rbuf[80];
+	//dir = FileSys.openDir("/");
+	while (dir.next()) {                      // List the file system contents
+		filecnt += 1;
+		sprintf(rbuf, "%ld %s", dir.fileSize(), dir.fileName().c_str());
+		client.println(rbuf);
+	}
+	sprintf(rbuf, "File System: total size: %ld, used: %ld, files: %ld, heap: %ld",
+			filesysinfo.totalBytes, filesysinfo.usedBytes, filecnt, ESP.getFreeHeap());
+	client.println(rbuf);
+}
+
+// send contents of a binary time-temperature file to client
+// usable from curl
+
+void WebHandler::getRawFile() {
+	String path = httpServer.arg("f");
+	if (! sendRawFile(path.c_str())) {
+		httpServer.send(404, "text/plain", "File not found\n");
+	}
+}
+
+void WebHandler::getRawFileChecksum() {
+	uint32_t crc = sendingChecksum.finalize();
+	MSGV("sending crc32 checksum: %08lx", crc);
+	char buf[20];
+	sprintf(buf, "%08lX", crc);
+	httpServer.send(200, "text/plain", buf);
+}
+
+#define ENTRIESPERCHUNK 200       // =2400 bytes, static as 200 entries is too much for stack
+
+bool WebHandler::sendRawFile(const char *path) {				// formerly "load_from_flash"
+	if (sendingFileSet) return false;							// a file is already being sent
+	MSGV("sending raw file: '%s'", path);
+//	// first a test:
+//	const char* s = "123456789";
+//	sendingChecksum.reset();
+//	while (*s) {
+//		sendingChecksum.update((uint8_t)*s++);
+//	}
+//	MSGV("CRC32 test result: %08lX", sendingChecksum.finalize());
+	sendingClient = httpServer.client();
+	//MSGV("assigned client");
+	const char *xpath = path;
+	if (path[0] == '/') xpath = &path[1];
+	int xlen = strlen(xpath);
+	Dir dir = FileSys.openDir("/");
+	//MSGV("opened directory");
+	while (1) {                      					// traverse file system contents
+		//MSGV("about to call dir.next()");
+		int r = dir.next();
+		//MSGV("result is %d", r);
+		//Serial.println("called dir.next");
+		if (! r) break;
+		//MSGV("about to check %s (%d)", dir.fileName().c_str(), strlen(dir.fileName().c_str()));
+		//const char *fnm = dir.fileName().c_str();				// not safe for unknown reasons
+		char fnm[80];
+		strncpy(fnm, dir.fileName().c_str(), 80);
+		fnm[80] = '\0';
+		//MSGV("checking %s against %s", xpath, fnm);
+		if (strcmp(xpath, fnm) == 0) {							// exact match required
+			MSGV("found exact match to %s", xpath);
+			int len = dir.fileSize();
+			send_octets_preamble(sendingClient, dir.fileSize());
+			sendingFile = FileSys.open(dir.fileName(), "r");
+			sendingChecksum.reset();
+			sendingFileSet = true;
+			sendingFileTime = millis();
+			MSGV("ready to send");
+			return true;
+		} else {
+			//MSGV("match rejected");
+		}
+	}
+	return false;
+}
+
+// the job is done when a fixed number of bytes equal to the file length have been sent
+
+static const int millisWait = 40;
+
+void WebHandler::sendNextFileChunk() {
+	if (! sendingFileSet) return;			// no file is being sent
+	if (millis() - sendingFileTime < millisWait) return;
+	sendingFileTime = millis();
+	static qentry buf[ENTRIESPERCHUNK];
+	unsigned int bytesread = sendingFile.readBytes((char*)&buf, ENTRIESPERCHUNK*sizeof(qentry));
+	if (bytesread != 0) {
+		sendingChecksum.update((uint8_t*)buf, bytesread);
+		int byteswrote = sendingClient.write((char*)&buf, bytesread);			// for binary writes
+		MSGV("sent %d of %d bytes from %d at %u", byteswrote, bytesread, sendingFile.position(), millis());
+	} else {
+		sendingClient.flush();
+		sendingClient.stop();
+		MSGV("stopped connection after %d bytes (crc: %08lX) at %u", sendingFile.position(), sendingChecksum.finalize(), millis());
+		sendingFile.close();
+		sendingFileSet = false;
+	}
+}
+
+void WebHandler::send_octets_preamble(WiFiClient &client, unsigned int len) {
+	MSGV("sending preamble (%u)", len);
+	int r = client.printf_P(PSTR("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"));
+	MSGV("sent %d bytes of line one", r);
+	r = client.printf_P(PSTR("Content-Length: %d\r\nConnection: Close\r\n"), len);
+	MSGV("sent %d bytes of line two", r);
+	client.println();
+	MSGV("sent line three");
+}
