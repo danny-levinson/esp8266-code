@@ -34,9 +34,9 @@ RotatingFileAppender::RotatingFileAppender(const char *fileName,
 
 	// load file system by default & log the result (but without formatter)
 	if (FileSys.begin()) {
-		_log.verbose(F("File system mounted."));
+		_log.verbose(F("File system mounted."));			// not logged as log system not yet initialised
 	} else {
-		_log.warning(F("Mounting file system failed."));
+		_log.warning(F("Mounting file system failed."));	// ditto
 	}
 }
 
@@ -88,12 +88,12 @@ File RotatingFileAppender::getFile() {
 		// open existing file and set file preferences
 		if (FileSys.exists(getFileName())) {
 			_file = FileSys.open(getFileName(), "a");
+			_file.write("\r\n");		// just so we can find where the new log starts easily
 			if (_file) {
 				_log.trace(F("Open log file [%s] successful."), getFileName());
 			} else {
 				_log.error(F("Open log file [%s] failed."), getFileName());
 			}
-			_file.write("\r\n");		// just so we can find where the new log starts easily
 
 		// create a new file and set default file preferences
 		} else {
