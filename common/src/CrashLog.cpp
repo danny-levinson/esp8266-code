@@ -12,7 +12,9 @@
 #include "CrashLog.h"
 #include "FileSys.h"
 #include "SerialDebugHelper.h"
+#include "MsgLogHandler.h"
 
+// Note: CrashCheckpoint_init() is called from StandardHelpers.cpp right after setup_message_logging()
 
 static const char *tmplogname = "/crash.log";
 static const char *lognamepattern = "/crash-%d.log";
@@ -86,6 +88,8 @@ void CrashCheckpoint_init() {
     CrashLog_writeTmpLog(ccp);
     // can add more info as needed, e.g. heap, real time, app text/flags
     SPRNTF(1, "Last boot reason: %s, %u, %u\n", ccp.crash_reason, ccp.app_state_value, ccp.uptime_s);
+	MSGV("Last boot reason: %s, %u, %u", ccp.crash_reason, ccp.app_state_value, ccp.uptime_s);
+
 }
 
 
