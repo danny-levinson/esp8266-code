@@ -23,8 +23,10 @@ public:
 	bool restoreAppData() override;
 	bool saveAppData() override;
 
-    void registerAppRoutes() override;
+	const char *getAppVersion() override;
+    void registerAppRoutes(bool asStation) override;
 	void renderAppDebugInfo() override;
+	void appLoopWebhandling() override;
 
 private:
 	DataSaver *appDataSaver;

@@ -10,12 +10,20 @@
 
 #include "DataSaver.h"
 
+static const char *appVersion = "1.0";	// represents app (non-common) part of version for entire app
 
-void WebHandler::registerAppRoutes()
+
+void WebHandler::registerAppRoutes(bool asStation)
 {
 	//httpServer.on("/dbgsetservoangles", HTTP_GET, [this]() { this->debug_set_servo_angles(); });
 }
 
+const char *WebHandler::getAppVersion() {
+	return appVersion;
+}
+
+void WebHandler::appLoopWebhandling() {
+}
 
 WebHandler::WebHandler(const char *genericname) :
 	WebHandlerBase(genericname)
