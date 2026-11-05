@@ -4,9 +4,12 @@
 
 
 #include "StandardHelpers.h"
-#include "temperature_logger.h"
+
 #include "WebHandler.h"
 #include "WebSocket.h"
+
+#include "temperature_logger.h"
+#include "switch_controller.h"
 
 
 /*
@@ -55,7 +58,7 @@ static StandardHelpers standardhelpers;
 
 class WebHandler *my_webhandler = 0;
 class WebSocketApp *my_socketHandler = 0;
-
+class SwitchController *the_switch_controller = 0;
 
 void setup() {
     my_webhandler = new WebHandler(hostnamepfx);
@@ -63,10 +66,13 @@ void setup() {
     my_socketHandler = new WebSocketApp();
 	standardhelpers.setup(my_webhandler, my_socketHandler, textname, hostnamepfx, false);
 	the_temperature_logger.setupTemperatureLogger();					// also sets up sensor handling
+	the_switch_controller = new SwitchController();
+	the_switch_controller->setupSwitch();
 }
 
 void loop() {
 	standardhelpers.loopBegin();
 	the_temperature_logger.loopTemperatureLogger();
 	standardhelpers.loopEnd();
+	the_switch_controller->loopSwitch();
 }
