@@ -271,9 +271,9 @@ Raw&nbsp;temperature:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset&nbsp;tempera
 <input type="submit" name="subaction" value="Set offset">
 </form>
 <hr/>
-<h2>Fan control (tbd)</h2>
+<h3>Fan control (tbd)</h3>
 <hr/>
-<h2>Messages</h2>
+<h3>Messages</h3>
 )=====";
 
 void WebHandler::configSendPage() {
@@ -521,7 +521,10 @@ void WebHandler::sendNextFileChunk() {
 	if (bytesread != 0) {
 		sendingChecksum.update((uint8_t*)buf, bytesread);
 		int byteswrote = sendingClient.write((char*)&buf, bytesread);			// for binary writes
-		MSGV("sent %d of %d bytes from %d at %u", byteswrote, bytesread, sendingFile.position(), millis());
+		//MSGV("sent %d of %d bytes from %d at %u", byteswrote, bytesread, sendingFile.position(), millis());
+		if (byteswrote != bytesread) {
+			MSGE("sent only %d of %d bytes from %d at %u", byteswrote, bytesread, sendingFile.position(), millis());
+		}
 	} else {
 		sendingClient.flush();
 		sendingClient.stop();
