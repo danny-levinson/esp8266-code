@@ -36,6 +36,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/log4Esp/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266SSDP}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/CRC32/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266HTTPClient/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.cpp.sketch.input.1889774642" name="CPP source files" superClass="io.sloeber.compiler.cpp.sketch.input"/>
 							</tool>
@@ -58,6 +59,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/log4Esp/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266SSDP}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/CRC32/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266HTTPClient/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.c.sketch.input.1878009688" name="C Source Files" superClass="io.sloeber.compiler.c.sketch.input"/>
 							</tool>
@@ -80,6 +82,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/log4Esp/src}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266SSDP}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/CRC32/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/temperature_logger/libraries/ESP8266HTTPClient/src}&quot;"/>
 								</option>
 								<inputType id="io.sloeber.compiler.S.sketch.input.2099612027" name="Assembly source files" superClass="io.sloeber.compiler.S.sketch.input"/>
 							</tool>

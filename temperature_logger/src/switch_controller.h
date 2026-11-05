@@ -16,7 +16,16 @@ public:
 	void loopSwitch();
 
 private:
+	int msgcountin, msgcountout;			// reporting variables
+	String switchIPAddress;   				// the switch ip address once we've found it, otherwise ""
 
+	void setupMulticastUDP();				// called from setup
+	void checkForMultiscanUdpMessages();	// called from loop
+	bool checkForMultiscanUdpMessage();
+	void processIncomingPacket(String &incomingPacket, String &loc);
+	String getDeviceFriendlyName(String &loc);
+
+	void perhapsAskForSwitchAddress();
 };
 
 extern class SwitchController *the_switch_controller;	// defined in temp_logger_main.cpp
