@@ -143,6 +143,10 @@ void wifi::notifySettingsChanged() {
     settingsChanged = true;
 }
 
+bool wifi::wifiIsConnected() const {
+	return state == WIFI_STATE_STA_CONNECTED;
+}
+
 // -------------------- Debugging & Monitoring --------------------
 
 const char *wifi::getStateName(WifiState state, char *code) {

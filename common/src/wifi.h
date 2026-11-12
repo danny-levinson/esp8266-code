@@ -23,6 +23,7 @@ public:
     		   const char *ssid_prefix,
 			   const char *otapasswd);
     void loop();
+    bool wifiIsConnected() const;
 
     // Setter so the free function can notify us
     void notifySettingsChanged();

@@ -26,6 +26,8 @@ public:
 	void setupWebhandling(bool as_station);
 	void loopWebhandling();
 
+	bool wifiIsConnected();
+
 	bool restoreLibraryData();
 	virtual bool restoreAppData() = 0;
 	bool saveLibraryData();

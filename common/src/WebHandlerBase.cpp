@@ -37,8 +37,8 @@ static long InitialFreeHeapSize = 0;
 void WebHandlerBase::registerCommonRoutes(bool as_station) {
 	static bool http_is_running = false;
 	if (! http_is_running) {
-		InitialFreeHeapSize = ESP.getFreeHeap();	// for future debugging
 		http_is_running = true;
+		InitialFreeHeapSize = ESP.getFreeHeap();	// for future debugging
 		//SPRNTF(1, "Starting HTTP...\r\n");
 		httpServer.on("/version", [this]() { this->getVersion(); });
 		httpServer.on("/setsettings", [this]() { this->saveSettings(); });
@@ -67,6 +67,10 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 		restoreAppData();
 		if (webSocketHandler) webSocketHandler->setupWebsocket();
 	}
+}
+
+bool WebHandlerBase::wifiIsConnected() {
+	return wifi_instance != 0 && wifi_instance->wifiIsConnected();
 }
 
 void WebHandlerBase::getVersion() {
