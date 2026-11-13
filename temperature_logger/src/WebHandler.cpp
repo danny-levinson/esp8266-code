@@ -17,6 +17,7 @@
 
 #include "temperature_logger.h"
 #include "temperature_filing.h"
+#include "switch_controller.h"
 
 static const char *appVersion = "1.0";	// represents app (non-common) part of version for entire app
 
@@ -249,9 +250,12 @@ void WebHandler::temperaturesSendPage() {
 
 
 static char config_page_format[] PROGMEM = R"=====(
+<style>input { font-family: Arial,Helvetica,sans-serif; font-size:smaller; } </style>
 <form autocomplete="off" method=GET action="configset">
-Universal&nbsp;time:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local&nbsp;time:&nbsp;%s
-<p/>
+<b>Times</b>&nbsp;&nbsp;&nbsp;&nbsp;
+<small>
+Universal:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local:&nbsp;%s
+<br/>
 <label for="tzone" title="Specify the timezone in hours ahead of GMT">Time zone:
 <input type="number" value="%d" id="tzone" name="tzone" min="-12" max="12" size="4"></label>
 &nbsp;&nbsp;&nbsp;&nbsp;
@@ -262,18 +266,18 @@ Universal&nbsp;time:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local&nbsp;time:&nbsp;%s
 <input type="number"  value="%d" id="offset" name="offset" min="-10" max="10" size="4"></label>
 &nbsp;&nbsp;&nbsp;&nbsp;
 <input type="submit" name="subaction" value="Set local time modifiers">
-<hr/>
-Raw&nbsp;temperature:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset&nbsp;temperature:&nbsp;%s&deg;C
-<p/>
+</small><hr/>
+<b>Temperature</b>&nbsp;&nbsp;&nbsp;&nbsp;
+<small>
+Raw:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset:&nbsp;%s&deg;C
+<br/>
 <label for="calib" title="Choose a temperature offset of +/- 10.0 degrees if the temperature reading needs to be calibrated to a standard">Temperature offset:
 <input type="number"  value="%0.1f" id="calib" name="calib" min="-10" max="10" step="0.1" size="6"></label>
 &nbsp;&nbsp;&nbsp;&nbsp;
 <input type="submit" name="subaction" value="Set offset">
+</small>
 </form>
 <hr/>
-<h3>Fan control (tbd)</h3>
-<hr/>
-<h3>Messages</h3>
 )=====";
 
 void WebHandler::configSendPage() {
@@ -294,8 +298,8 @@ void WebHandler::configSendPage() {
 			cg_tzone, cg_dst ? "checked" : "", cg_offset,
 			tmpbufraw, tmpbufcal,
 			g_calib/10.0);
-
-	client.print(F("<h5>"));
+	the_switch_controller->configSendSection(client);			// <h3>Fan control (tbd)</h3><hr/>
+	client.print(F("<b>Messages</b><br/><small>\n"));
 	long uptime = NTPtimeManager.getUptime();
 	if (uptime == 0) {
 		CPF("Up for: "); CP(millis());
@@ -303,8 +307,8 @@ void WebHandler::configSendPage() {
 		char tmbuff[20];
 	    CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
 	}
-	CPF(",&nbsp;&nbsp;   FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(ESP.getFreeHeap());
-	CPF("<br/>");
+	CPF(",&nbsp;&nbsp; FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(ESP.getFreeHeap());
+	CPF("<br/>\n");
 	CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
 	CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
 	CPF(",&nbsp;&nbsp;&nbsp;&nbsp;   signal strength: "); CP(WiFi.RSSI());
@@ -312,12 +316,13 @@ void WebHandler::configSendPage() {
 
 	// Note: tstore count & dropped temperatures are for when we do graphing
 	// CPF("Stored: "); CP(tstore.count()); CPF(", ");
-	CPF("<br/>");
+	CPF("<br/>\n");
 	CPF("Pending in store: "); CP(the_temperature_logger.getStore().availableInStore());
+	CPF("\n</small>\n");
 	//if (dropped_temperatures != 0) {
 	//  CPF(",&nbsp;&nbsp;   Dropped: "); CP(dropped_temperatures);
 	//}
-	CPNF("</h5>");
+	//CPNF("</h5>");
 /*
 	  CPNF("<h3><table><tr>");
 	  CPNF("<td><form autocomplete="off" action=\"http:flushmessages.html\" title=\"Clear out log messages\" method=get><input type=submit value=\"Flush\"></form></td>");
@@ -328,7 +333,7 @@ void WebHandler::configSendPage() {
 	  CPNF("<td><form autocomplete="off" action=\"http:togglefanstate.html\" title=\"Toggle fan on/off\"method=get><input type=submit value=\"Test\"></form></td>");
 	  CPNF("</td></tr></table></h3>");
 */
-	CPNF("<p>");
+	//CPNF("<p>");
 	int f0lines = 0, f1lines = 0, lr = 0, lw = 0;
 	File f = open_message_log_file();
 	while (f.find('\n')) f0lines += 1;

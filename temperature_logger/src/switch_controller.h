@@ -11,13 +11,16 @@
 class SwitchController
 {
 public:
-	SwitchController();
+	SwitchController(class WebHandlerBase *wbh);
 	void setupSwitch();
 	void loopSwitch();
+
+	void configSendSection(WiFiClient &client);
 
 private:
 	int msgcountin, msgcountout;			// reporting variables
 	String switchIPAddress;   				// the switch ip address once we've found it, otherwise ""
+	class WebHandlerBase *webhandler;		// just to ask if we are connected
 
 	void setupMulticastUDP();				// called from setup
 	void checkForMultiscanUdpMessages();	// called from loop
@@ -26,6 +29,17 @@ private:
 	String getDeviceFriendlyName(String &loc);
 
 	void perhapsAskForSwitchAddress();
+
+	String switchAddress();
+	int getSwitchState();
+	bool setSwitchState(bool onOrOff);
+	int checkSwitchState();
+	void unsetSwitchState();
+	int getCurrentSwitchState();
+	bool isSwitchOn();
+
+	void maybeActuateSwitch();
+
 };
 
 extern class SwitchController *the_switch_controller;	// defined in temp_logger_main.cpp

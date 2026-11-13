@@ -66,7 +66,7 @@ void setup() {
     my_socketHandler = new WebSocketApp();
 	standardhelpers.setup(my_webhandler, my_socketHandler, textname, hostnamepfx, false);
 	the_temperature_logger.setupTemperatureLogger();					// also sets up sensor handling
-	the_switch_controller = new SwitchController();
+	the_switch_controller = new SwitchController(my_webhandler);
 	the_switch_controller->setupSwitch();
 }
 
