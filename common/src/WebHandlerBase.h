@@ -27,6 +27,7 @@ public:
 	void loopWebhandling();
 
 	bool wifiIsConnected();
+	ESP8266WebServer &getServer();
 
 	bool restoreLibraryData();
 	virtual bool restoreAppData() = 0;

@@ -73,6 +73,10 @@ bool WebHandlerBase::wifiIsConnected() {
 	return wifi_instance != 0 && wifi_instance->wifiIsConnected();
 }
 
+ESP8266WebServer &WebHandlerBase::getServer() {
+	return httpServer;
+}
+
 void WebHandlerBase::getVersion() {
 	const int maxlen = 20;
 	const char *V1 = getBaseVersion(), *V2 = getAppVersion();
