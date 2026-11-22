@@ -27,8 +27,6 @@ static const char *baseVersion = "1.0";		// represents base part of version for 
 
 #define MSG(x) SPRTLN(1, x)
 
-static long InitialFreeHeapSize = 0;
-
 
 // note: the version of the server in the eclipse cdt does not delete its handlers
 // on close. in fact there may be no way to delete the handlers.
@@ -38,7 +36,6 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 	static bool http_is_running = false;
 	if (! http_is_running) {
 		http_is_running = true;
-		InitialFreeHeapSize = ESP.getFreeHeap();	// for future debugging
 		//SPRNTF(1, "Starting HTTP...\r\n");
 		httpServer.on("/version", [this]() { this->getVersion(); });
 		httpServer.on("/setsettings", [this]() { this->saveSettings(); });
@@ -264,7 +261,7 @@ void WebHandlerBase::renderCommonDebugInfo() {
 		CPF(" UTC ["); CP(uptime); CP("]");
 		CPF("&nbsp;&nbsp; ("); CP(millis()); CPF(" ms)");
 	}
-	CPF(",&nbsp;&nbsp;   FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(InitialFreeHeapSize); CPNF("</h4>");
+	CPF(",&nbsp;&nbsp;   FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(initialFreeHeapSize); CPNF("</h4>");
 	CPF("<h5>");
 	CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
 	CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
@@ -550,6 +547,7 @@ const char *WebHandlerBase::textname = "";
 const wifi *WebHandlerBase::wifi_instance = 0;
 
 WebHandlerBase::WebHandlerBase(const char *txtnm) : webSocketHandler(0) {
+	initialFreeHeapSize = ESP.getFreeHeap();
 	textname = txtnm;
 	libraryDataSaver = new DataSaver(&libraryData, sizeof(libraryData), "/libconfig");
 }

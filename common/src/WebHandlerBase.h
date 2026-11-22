@@ -41,6 +41,8 @@ public:
 	bool setTimeModifiersFromServer();
 
 protected:
+	long initialFreeHeapSize;
+
 	ESP8266WebServer httpServer{80};
 
 	// Extension points for derived classes
