@@ -69,6 +69,17 @@ private:
 	void configSendPage();
 	void configSaveData();
 
+	void sendTemperatureInfo(WiFiClient &client, char infodata[]);
+	void changeTemperatureOffset();
+	void setTemperatureOffset();
+	void resetTemperatureOffset();
+
+	void sendTimeInfo(WiFiClient &client, char infodata[], const char *toast);
+	void setTimeParameters();
+	void resetTimeParameters();
+
+	void getTestButton();
+
 	void syncBuffer();
 	void listFilesToClient();
 	void getRawFile();

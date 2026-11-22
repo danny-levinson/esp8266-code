@@ -28,7 +28,12 @@ void WebHandler::registerAppRoutes(bool asStation) {
 	httpServer.on("/temperatures.html", HTTP_GET, [this]() { this->temperaturesSendPage(); });
 	httpServer.on("/config.html", HTTP_GET, [this]() { this->configSendPage(); });
 	httpServer.on("/config", HTTP_GET, [this]() { this->configSendPage(); });
-	httpServer.on("/configset", HTTP_GET, [this]() { this->configSaveData(); });
+	//httpServer.on("/configset", HTTP_GET, [this]() { this->configSaveData(); });
+	httpServer.on("/changetemperatureoffset", HTTP_GET, [this]() { this->changeTemperatureOffset(); });
+	httpServer.on("/settemperatureoffset", HTTP_GET, [this]() { this->setTemperatureOffset(); });
+	httpServer.on("/resettemperatureoffset", HTTP_GET, [this]() { this->resetTemperatureOffset(); });
+	httpServer.on("/settimeparameters", HTTP_GET, [this]() { this->setTimeParameters(); });
+	httpServer.on("/resettimeparameters", HTTP_GET, [this]() { this->resetTimeParameters(); });
 
 	httpServer.on("/sync", HTTP_GET, [this]() { this->syncBuffer(); });
 	httpServer.on("/listspiffstoclient", HTTP_GET, [this]() { this->listFilesToClient(); });	// obsolescent url
@@ -36,6 +41,9 @@ void WebHandler::registerAppRoutes(bool asStation) {
 	httpServer.on("/getrawfile", HTTP_GET, [this]() { this->getRawFile(); });
 	httpServer.on("/getrawfilecrc32", HTTP_GET, [this]() { this->getRawFileChecksum(); });
 	httpServer.on("/getfile", HTTP_GET, [this]() { this->getRawFile(); });			// obsolescent url (base uses /dbggetfile)
+
+	httpServer.on("/testbutton", HTTP_GET, [this]() { this->getTestButton(); });
+	the_switch_controller->registerSwitchRoutes(httpServer);
 
 	if (asStation) setupSSDP();
 }
@@ -48,9 +56,11 @@ const char *WebHandler::getAppVersion() {
 	return appVersion;
 }
 
+static const char *appDataFilename = "/appconfig.dat";
+
 WebHandler::WebHandler(const char *genericname) : WebHandlerBase(genericname),
 		sendingFileTime(0), sendingFileSet(0) {
-	appDataSaver = new DataSaver(&appData, sizeof(appData), "/appconfig");
+	appDataSaver = new DataSaver(&appData, sizeof(appData), appDataFilename);
 }
 
 // allow us to be found using polling
@@ -75,13 +85,14 @@ void WebHandler::setupSSDP() {
 
 bool WebHandler::saveAppData() {
 	appData.calib = g_calib;
-	return appDataSaver->write();
+	return the_switch_controller->saveSwitchData() && appDataSaver->write();
 }
 
 bool WebHandler::restoreAppData() {
-	bool r = appDataSaver->read();
+	if (! the_switch_controller->restoreSwitchData()) return false;
+	if (! appDataSaver->read()) return false;
 	g_calib = appData.calib;
-	return r;
+	return true;
 }
 
 
@@ -102,12 +113,6 @@ void WebHandler::renderAppDebugInfo() {
 	float tmp = the_temperature_logger.getLastTemperature();
 	unsigned int del = the_temperature_logger.getLastDelayTime();
 	client.printf_P(debug_page_form_extra, tmp, del);
-//	CP(FPSTR(debug_page_form_extra));
-//	int ang1, ang2;
-//	the_damper.get_servo_angles(ang1, ang2);
-//	client.printf("Closed: <input type=\"text\" name=\"ang1\" size=\"4\" value=\"%d\">\r\n", ang1);
-//	client.printf("Open: <input type=\"text\" name=\"ang2\" size=\"4\" value=\"%d\">\r\n", ang2);
-//	CP(FPSTR(debug_page_form_ender));
 }
 
 
@@ -249,11 +254,33 @@ void WebHandler::temperaturesSendPage() {
 // config & messages page
 
 
-static char config_page_format[] PROGMEM = R"=====(
-<style>input { font-family: Arial,Helvetica,sans-serif; font-size:smaller; } </style>
-<form autocomplete="off" method=GET action="configset">
-<b>Times</b>&nbsp;&nbsp;&nbsp;&nbsp;
+static char config_page_header[] PROGMEM = R"=====(
+<script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" 
+          integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg"
+          crossorigin="anonymous"></script>
+<style>input, button { font-family: Arial,Helvetica,sans-serif; font-size:smaller; }</style>
+)=====";
+
+static char config_section_header[] PROGMEM = R"=====(
+<b>%s</b> &nbsp;&nbsp;&nbsp;&nbsp;
 <small>
+)=====";
+
+static char config_section_trailer[] PROGMEM = R"=====(
+</small>
+<hr/>
+)=====";
+
+
+//<form hx-get="/settimeparameters" hx-target="this" hx-swap="outerHTML settle:3s">
+//<style>#toast.htmx-settling { opacity: 100; } #toast { background: #E1F0DA; opacity: 20; transition: opacity 3s ease-out; }</style>
+//<span id="toxasts" hx-swap-oob="beforeend">
+//<span class="toxast" id="toxast" hx-on:load="setTimeout(() => this.remove(), 3000)">%s</span>
+//</span>
+
+static char timeInfoSection[] PROGMEM = R"=====(
+<style scoped="">#toast.htmx-settling { opacity: 100; } #toast { background: #E1F0DA; opacity: 0; transition: opacity 3s ease-out; }</style>
+<form style="display: inline;" hx-get="/settimeparameters" hx-target="this" hx-swap="outerHTML settle:3s">
 Universal:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local:&nbsp;%s
 <br/>
 <label for="tzone" title="Specify the timezone in hours ahead of GMT">Time zone:
@@ -265,41 +292,84 @@ Universal:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local:&nbsp;%s
 <label for="offset" title="Choose an offset of up to 10 minutes if your preferred personal time is not exactly standard">Time offset:
 <input type="number"  value="%d" id="offset" name="offset" min="-10" max="10" size="4"></label>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<input type="submit" name="subaction" value="Set local time modifiers">
-</small><hr/>
-<b>Temperature</b>&nbsp;&nbsp;&nbsp;&nbsp;
-<small>
-Raw:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset:&nbsp;%s&deg;C
-<br/>
-<label for="calib" title="Choose a temperature offset of +/- 10.0 degrees if the temperature reading needs to be calibrated to a standard">Temperature offset:
-<input type="number"  value="%0.1f" id="calib" name="calib" min="-10" max="10" step="0.1" size="6"></label>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="submit" name="subaction" value="Set offset">
-</small>
+<button class="btn" type="submit" title="Set the specified time parameters">Submit</button>
+<button class="btn" hx-get="/resettimeparameters" title="Revert the time parameters">Cancel</button>
+&nbsp;
 </form>
+<span id="toast" hx-swap-oob="true"> %s </span>
+)=====";
+
+
+static char fadingTestCode[] PROGMEM = R"=====(
+<form id="ft-test" hx-get="/testbutton" hx-swap="innerHTML settle:3s" hx-target="#toast2">
+<input type="submit" value="see fading text" class="btn primary">
+    <output id="toast2"></output>
+</form>
+<style scoped="">#toast2.htmx-settling { opacity: 100; } #toast2 { background: #E1F0DA; opacity: 0; transition: opacity 3s ease-out; }</style>
+<output id="toast2"></output>
 <hr/>
 )=====";
+
+//<style scoped="">
+//#toast2.htmx-settling {
+//  opacity: 100;
+//}
+//#toast2 {
+//  background: #E1F0DA;
+//  opacity: 0;
+//  transition: opacity 3s ease-out;
+//}
+//</style>
+
+static char temperatureInfoSection[] PROGMEM = R"=====(
+<span hx-target="this" hx-swap="outerHTML">
+Raw:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset temp:&nbsp;%s&deg;C
+<br/>
+<label for="calibbtn" title="Choose a temperature offset of +/- 10.0 degrees if the temperature reading needs to be calibrated to a standard">
+Temperature offset: %0.1f &nbsp;&nbsp;
+</label>
+<button hx-get="/changetemperatureoffset" class="btn primary" title="Click to change the temperature offset">Click To Change</button>
+</span>
+)=====";
+
+static char temperatureOffsetChangeForm[] PROGMEM = R"=====(
+<span id="tmpdata" hx-target="this" hx-swap="outerHTML">
+Raw:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset temp:&nbsp;%s&deg;C
+<br/>
+<form hx-get="/settemperatureoffset" hx-target="#tmpdata" hx-swap="outerHTML">
+<label for="calibbtn" title="Choose a temperature offset of +/- 10.0 degrees if the temperature reading needs to be calibrated to a standard">
+Temperature offset: &nbsp;&nbsp;
+<input type="number"  value="%0.1f" id="calib" name="calib" min="-10" max="10" step="0.1" size="6">
+</label>
+&nbsp;&nbsp;
+<button class="btn" type="submit" title="Set the specified temperature offset">Submit</button>
+<button class="btn" hx-get="/resettemperatureoffset" title="Revert the temperature offset">Cancel</button>
+</form>
+)=====";
+
 
 void WebHandler::configSendPage() {
 	WiFiClient &client = sendHeaderToClient();
 	MSGV("sending configuration page");
 	String title = String("Configuration for: ") + WiFi.hostname();
 	send_std_header(client, title.c_str());
-	//MSGV("unix time: %llu", NTPtimeManager.getUnixTime());
-	//MSGV("locl time: %llu", NTPtimeManager.getAdjustedTime(g_tzone, g_dst, g_offset));
-	char tmsgbufgmt[40], tmsgbuflcl[40], tmpbufraw[10], tmpbufcal[10];
-	NTPtimeManager.getTimeString(40, tmsgbufgmt, NTPtimeManager.getEpoch());
-	NTPtimeManager.getTimeString(40, tmsgbuflcl, NTPtimeManager.getAdjustedTime(cg_tzone, cg_dst, cg_offset));
-	strcpy(tmpbufraw, the_temperature_logger.getLastTemperatureAsString());
-	strcpy(tmpbufcal, the_temperature_logger.getLastTemperatureAsString(g_calib/10.0));
-	//MSGV("calib offset: %d", g_calib);
-	client.printf_P(config_page_format,
-			tmsgbufgmt, tmsgbuflcl,
-			cg_tzone, cg_dst ? "checked" : "", cg_offset,
-			tmpbufraw, tmpbufcal,
-			g_calib/10.0);
-	the_switch_controller->configSendSection(client);			// <h3>Fan control (tbd)</h3><hr/>
-	client.print(F("<b>Messages</b><br/><small>\n"));
+	client.printf_P(config_page_header);
+
+	client.printf_P(config_section_header, "Times");
+	sendTimeInfo(client, timeInfoSection, "init");
+	client.printf_P(config_section_trailer);
+	//client.printf_P(fadingTestCode);
+
+	client.printf_P(config_section_header, "Temperature");
+	sendTemperatureInfo(client, temperatureInfoSection);
+	client.printf_P(config_section_trailer);
+
+	client.printf_P(config_section_header, "Switch control");
+	the_switch_controller->configSendSwitchSection(client);			// <h3>Fan control (tbd)</h3><hr/>
+	client.printf_P(config_section_trailer);
+
+	client.printf_P(config_section_header, "Messages");
+	client.print(F("<br/>\n"));
 	long uptime = NTPtimeManager.getUptime();
 	if (uptime == 0) {
 		CPF("Up for: "); CP(millis());
@@ -307,7 +377,7 @@ void WebHandler::configSendPage() {
 		char tmbuff[20];
 	    CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
 	}
-	CPF(",&nbsp;&nbsp; FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(ESP.getFreeHeap());
+	CPF(",&nbsp;&nbsp; FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(initialFreeHeapSize);
 	CPF("<br/>\n");
 	CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
 	CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
@@ -334,6 +404,7 @@ void WebHandler::configSendPage() {
 	  CPNF("</td></tr></table></h3>");
 */
 	//CPNF("<p>");
+
 	int f0lines = 0, f1lines = 0, lr = 0, lw = 0;
 	File f = open_message_log_file();
 	while (f.find('\n')) f0lines += 1;
@@ -373,8 +444,45 @@ void WebHandler::configSendPage() {
 	//CPNF("lines written: "); CP(lw);
 }
 
+void WebHandler::sendTimeInfo(WiFiClient &client, char infodata[], const char *toast) {
+	//MSGV("unix time: %llu", NTPtimeManager.getUnixTime());
+	//MSGV("locl time: %llu", NTPtimeManager.getAdjustedTime(g_tzone, g_dst, g_offset));
+	char tmsgbufgmt[40], tmsgbuflcl[40];
+	NTPtimeManager.getTimeString(40, tmsgbufgmt, NTPtimeManager.getEpoch());
+	NTPtimeManager.getTimeString(40, tmsgbuflcl, NTPtimeManager.getAdjustedTime(cg_tzone, cg_dst, cg_offset));
+	//MSGV("calib offset: %d", g_calib);
+	client.printf_P(infodata,
+			tmsgbufgmt, tmsgbuflcl,
+			cg_tzone, cg_dst ? "checked" : "", cg_offset,
+			toast);
+}
+
+void WebHandler::setTimeParameters() {
+	WiFiClient &client = sendHeaderToClient();
+	MSGV("sending configuration time info after setting");
+	bool good = setTimeModifiersFromServer();
+	if (good) {
+		MSGV("*set* local time modifiers set successfully");
+	} else {
+		MSGE("*set* failed setting local time modifiers");
+	}
+	// common_globals.save();					// saved by setTimeModifiersFromServer()
+	sendTimeInfo(client, timeInfoSection, good ? "setting parameters successful" : "setting parameters failed");
+}
+
+void WebHandler::resetTimeParameters() {
+	WiFiClient &client = sendHeaderToClient();
+	MSGV("*reset* cancelled changing & reverted configuration time info data");
+	sendTimeInfo(client, timeInfoSection, "parameters reset");
+}
+
+void WebHandler::getTestButton() {
+	WiFiClient &client = sendHeaderToClient();
+	client.printf("\nfading test text\n");
+}
 
 void WebHandler::configSaveData() {
+	return;
 	MSGV("saving configuration data");
 	WiFiClient &client = sendHeaderToClient(false);
 	String action;
@@ -391,16 +499,16 @@ void WebHandler::configSaveData() {
 		} else {
 			CPNF("failed setting local time modifiers");
 		}
-	} else if (action.equals("Set offset")) {
-		if (! httpServer.hasArg("calib")) good = false;
-		String calib = httpServer.arg(String("calib"));
-		g_calib = (int)10*atof(calib.c_str());
-		if (good) {
-			saveAppData();
-			CPNF("temperature calibration offset set successfully");
-		} else {
-			CPNF("failed setting temperature calibration offset");
-		}
+//	} else if (action.equals("Set offset")) {
+//		if (! httpServer.hasArg("calib")) good = false;
+//		String calib = httpServer.arg(String("calib"));
+//		g_calib = (int)10*atof(calib.c_str());
+//		if (good) {
+//			saveAppData();
+//			CPNF("temperature calibration offset set successfully");
+//		} else {
+//			CPNF("failed setting temperature calibration offset");
+//		}
 	} else {
 		MSGW("unrecognised action '%s' in config_save_data", action.c_str());
 		CPN("");
@@ -410,6 +518,41 @@ void WebHandler::configSaveData() {
 	//config_data_save_to_filesystem();
 	//send_reload_reply("/config.html");
 }
+
+
+void WebHandler::sendTemperatureInfo(WiFiClient &client, char infodata[]) {
+	char tmpbufraw[10], tmpbufcal[10];
+	strcpy(tmpbufraw, the_temperature_logger.getLastTemperatureAsString());
+	strcpy(tmpbufcal, the_temperature_logger.getLastTemperatureAsString(g_calib/10.0));
+	client.printf_P(infodata, tmpbufraw, tmpbufcal, g_calib/10.0);
+}
+
+void WebHandler::changeTemperatureOffset() {
+	WiFiClient &client = sendHeaderToClient();
+	MSGV("sending configuration offset change section");
+	sendTemperatureInfo(client, temperatureOffsetChangeForm);
+}
+
+void WebHandler::resetTemperatureOffset() {
+	WiFiClient &client = sendHeaderToClient();
+	MSGV("sending configuration offset reset section");
+	sendTemperatureInfo(client, temperatureInfoSection);
+}
+
+void WebHandler::setTemperatureOffset() {
+	WiFiClient &client = sendHeaderToClient();
+	MSGV("sending configuration offset set section");
+	if (httpServer.hasArg("calib")) {
+		String calib = httpServer.arg(String("calib"));
+		g_calib = (int)10*atof(calib.c_str());
+		saveAppData();
+		MSGV("temperature calibration offset set successfully to %0.1f", g_calib/10.0);
+	} else {
+		MSGV("failed setting temperature calibration offset");
+	}
+	sendTemperatureInfo(client, temperatureInfoSection);
+}
+
 
 void WebHandler::syncBuffer() {
 	the_temperature_logger.getStore().flush();
