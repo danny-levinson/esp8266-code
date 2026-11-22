@@ -8,6 +8,8 @@
 #ifndef SRC_SWITCH_CONTROLLER_H_
 #define SRC_SWITCH_CONTROLLER_H_
 
+#define MAXSWITCHNAMELEN 40
+
 class SwitchController
 {
 public:
@@ -15,9 +17,19 @@ public:
 	void setupSwitch();
 	void loopSwitch();
 
-	void configSendSection(WiFiClient &client);
+	void registerSwitchRoutes(ESP8266WebServer &httpServer);
+	void configSendSwitchSection(WiFiClient &client);
+	bool restoreSwitchData();
+	bool saveSwitchData();
+
 
 private:
+	DataSaver *switchConfigDataSaver;
+	struct {
+		int switchenabled, switchauto, switchon, switchoff;
+		char switchname[MAXSWITCHNAMELEN];
+	} switchConfigData;
+
 	int msgcountin, msgcountout;			// reporting variables
 	String switchIPAddress;   				// the switch ip address once we've found it, otherwise ""
 	class WebHandlerBase *webhandler;		// just to ask if we are connected
@@ -38,8 +50,9 @@ private:
 	int getCurrentSwitchState();
 	bool isSwitchOn();
 
-	void maybeActuateSwitch();
+	void maybeActuateSwitch();				// called in loop to handle automatic action
 
+	void handleSwitchSetup();				// form action handler
 };
 
 extern class SwitchController *the_switch_controller;	// defined in temp_logger_main.cpp

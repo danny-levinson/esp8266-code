@@ -12,27 +12,81 @@
 #include <WiFiUdp.h>
 
 #include "WebHandlerBase.h"
+#include "DataSaver.h"
 #include "switch_controller.h"
 #include "temperature_logger.h"
 #include "MsgLogHandler.h"
 
-
-String g_switchname = "Dishwasher fan";						// NEED TO MAKE THESE NON VOLATILE
-int g_switchenabled = 1;
+char g_switchname[MAXSWITCHNAMELEN] = "Dishwasher fan";						// NEED TO MAKE THESE NON VOLATILE
+int g_switchenabled = 1, g_switchauto = 0;
 int g_switchon = 20, g_switchoff = 60;						// in tenths of a degree
 
+static const char *switchConfigDataFilename = "/switchconfig.dat";
 
 SwitchController::SwitchController(class WebHandlerBase *wbh) : msgcountin(0), msgcountout(0), webhandler(wbh),
 		switchIPAddress("") {
-
+	switchConfigDataSaver = new DataSaver(&switchConfigData, sizeof(switchConfigData), switchConfigDataFilename);
 }
 
-static const char switch_page_format[] PROGMEM = R"=====(
-<b>Switch control</b>
+bool SwitchController::saveSwitchData() {
+	switchConfigData.switchauto = g_switchauto;
+	switchConfigData.switchenabled = g_switchenabled;
+	switchConfigData.switchon = g_switchon;
+	switchConfigData.switchoff = g_switchoff;
+	strcpy(switchConfigData.switchname, g_switchname);	// safe as long as g_switchname gets checked
+	return switchConfigDataSaver->write();
+}
+
+bool SwitchController::restoreSwitchData() {
+	if (! switchConfigDataSaver->read()) return false;
+	g_switchauto = switchConfigData.switchauto;
+	g_switchenabled = switchConfigData.switchenabled;
+	g_switchon = switchConfigData.switchon;
+	g_switchoff = switchConfigData.switchoff;
+	strcpy(g_switchname, switchConfigData.switchname);	// safe if config file init to zero & max size not changed
+	return true;
+}
+
+// the only routes to register for the switch controller are for the configuration buttons
+
+void SwitchController::registerSwitchRoutes(ESP8266WebServer &httpServer) {
+	httpServer.on("/switchsetup", HTTP_GET, [this]() { this->handleSwitchSetup(); });
+}
+
+
+// handles actions in the switch section of the config form:
+//		changes in parameters (on temperature, off temperature, device name)
+//		checkbox changes (enable, automatic)
+//		button pushes (save data, test switch)
+
+static const char *save_button_text = "Save switch configuration changes";
+
+void SwitchController::handleSwitchSetup() {
+	ESP8266WebServer &httpServer = webhandler->getServer();
+	if (! httpServer.hasArg("subaction")) return;							// or checkbox changed?
+	String action = httpServer.arg("subaction");
+
+	if (action.equals(save_button_text)) {
+		/*
+		 * extract thon, thoff, name
+		 * assign to g_ variables
+		 * save to config file (webhandler->configSaveData())
+		 * return
+		 */
+	}
+	if (action.equals("Switch device on")) {
+
+	}
+	if (action.equals("Switch device off")) {
+
+	}
+}
+
+
+static const char switch_section_format[] PROGMEM = R"=====(
 <span style="line-height:1.5">
 <br/>
 <form method=GET action="switchsetup">
-<small>
 <label for="swenable" title="Configure an external switch (such as a WEMO, connected, for example, to a heater) to operate according to temperature limits. If switch control is disabled, the logger will not attempt to find a switch.">
 <label for="swname" title="Name given to the switch, as known to the switching device">Name:&nbsp;
 <input type="text" id="swname" name="swname" value="%s" length="20"></label>
@@ -52,6 +106,10 @@ automatic
 <input type="submit" id="swsubmit" name="subaction" value="%s" style="font-size:smaller" title="Save changes to the switch settings.">
 <br/>
 %s
+&nbsp;&nbsp;
+)=====";
+
+static const char switch_section_script[] PROGMEM = R"=====(
 <script>
 function enableDisable(bEnable) {
 	document.getElementById("swname").disabled = !bEnable;
@@ -62,43 +120,46 @@ function showButton(bHideit) {
   var x = document.getElementById("swswitch");
   x.style.visibility = bHideit ? 'hidden' : 'visible';
 }
-enableDisable(document.getElementById("swenable").checked);
-showButton(document.getElementById("swswitch").checked);
 </script>
-&nbsp;&nbsp;
 )=====";
 
-static const char *save_button_text = "Save switch configuration changes";
+static const char switch_section_actions[] PROGMEM = R"=====(
+<script>
+enableDisable(document.getElementById("swenable").checked);
+showButton(document.getElementById("swauto").checked);
+</script>
+)=====";
 
-void SwitchController::configSendSection(WiFiClient &client) {
+void SwitchController::configSendSwitchSection(WiFiClient &client) {
 	MSGV("sending switch configuration section");
-	client.printf_P(switch_page_format,
-			g_switchname.c_str(),
+	String swaddr = switchAddress();
+	client.printf_P(switch_section_script);
+	client.printf_P(switch_section_format,
+			g_switchname,
 			g_switchenabled ? "checked" : "",
 			"checked",
 			g_switchon/10.0,
 			g_switchoff/10.0,
 			save_button_text,
-			switchAddress() != "" ? "Switch is online.&nbsp;" : "Switch not (yet) found");
-	MSGV("config has enable: %d, name: %s, on: %d, off: %d", g_switchenabled, g_switchname.c_str(), g_switchon, g_switchoff);
+			swaddr != "" ? "Switch is online.&nbsp;" : "Switch not (yet) found");
+	MSGV("config has enable: %d, name: %s, on: %d, off: %d", g_switchenabled, g_switchname, g_switchon, g_switchoff);
 
-	String swaddr = switchAddress();
+	int r = getCurrentSwitchState();
 	if (swaddr != "") {
 		//char *spaces = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		int r = getCurrentSwitchState();
-		client.printf("'<i>%s</i>'&nbsp; is at %s.<br/>", g_switchname.c_str(), swaddr.c_str());
+		client.printf("'<i>%s</i>'&nbsp; is at %s.<br/>", g_switchname, swaddr.c_str());
 		client.printf("Switch state is %s.&nbsp;&nbsp;", (r == 0) ? "off" : (r == 1) ? "on" : "unknown");
-		if (r >= 0) {
-			static char s[] PROGMEM = "&nbsp;&nbsp;&nbsp;<input class=\"button\" id=\"swswitch\" type=\"submit\" name=\"subaction\" value=\"Switch device %s\" />";
-			if (r == 0) {
-				client.printf_P(s, "on");
-			} else if (r == 1) {
-				client.printf_P(s, "off");
-			}
-		}
 	}
-	client.printf("</small></form></span><hr/>\n");
-
+	static char s[] PROGMEM = "\n&nbsp;&nbsp;&nbsp;<input class=\"button\" id=\"swswitch\" type=\"submit\" title=\"Turn the device on or off for testing purposes\" name=\"subaction\" value=\"Switch device %s\" />";
+	if (r == 0) {
+		client.printf_P(s, "on");
+	} else if (r == 1) {
+		client.printf_P(s, "off");
+	} else {
+		client.printf_P(s, "is undefined");
+	}
+	client.printf("</form></span>\n");
+	client.printf_P(switch_section_actions);
 }
 
 //========================== switch control (find & identify switch) ====================================
@@ -152,8 +213,8 @@ void SwitchController::processIncomingPacket(String &incomingPacket, String &loc
 	if (s.indexOf("uuid:Socket") >= 0 && s.indexOf("redsonic") >= 0) {      // seems to characterize wemo switches
 		MSGV("got wemo, checking name");
 		String name = getDeviceFriendlyName(loc);
-		MSGV("name at loc '%s' is '%s', looking for '%s'", loc.c_str(), name.c_str(), g_switchname.c_str());
-		if (g_switchname.length() != 0 && name.compareTo(g_switchname) == 0) {
+		MSGV("name at loc '%s' is '%s', looking for '%s'", loc.c_str(), name.c_str(), g_switchname);
+		if (strlen(g_switchname) != 0 && strcmp(name.c_str(), g_switchname) == 0) {
 			switchIPAddress = loc;
 			MSGV("found switch '%s' at address '%s'", name.c_str(), loc.c_str());
 		}
@@ -219,7 +280,7 @@ void SwitchController::checkForMultiscanUdpMessages() {
 
 void SwitchController::perhapsAskForSwitchAddress() {
 	if (! g_switchenabled) return;
-	if (g_switchname.length() == 0) return;
+	if (strlen(g_switchname) == 0) return;
 	if (! webhandler->wifiIsConnected()) return;
 	static unsigned long intervalSWAsk = 60000;               		// Request switch info every 60k msecs = 60 seconds
 	static unsigned long intervalSWCheck = 1200000;      			// interval after first finding switch is 1200k=20 minutes
@@ -230,7 +291,7 @@ void SwitchController::perhapsAskForSwitchAddress() {
 			prevSWQuery = currentMillis;
 			MSGV("check switch response");
 			String name = getDeviceFriendlyName(switchIPAddress);
-			if (name.compareTo(g_switchname) != 0) {
+			if (strcmp(name.c_str(), g_switchname) != 0) {
 				switchIPAddress = "";
 				MSGV("casting for switch again");					// cast next time round
 			}
