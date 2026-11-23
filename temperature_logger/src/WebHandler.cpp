@@ -494,7 +494,7 @@ void WebHandler::sendMessagesInfo(WiFiClient &client) {
 	CPF("<br/>\n");
 	// line 3
 	CPF("Pending in store: "); CP(the_temperature_logger.getStore().availableInStore());
-	CPF("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<button hx-get=\"/updatemessages\" hx-target=\"#logmsgs\" hx-swap=\"outerHTML\">Update messages</button><br/>");
+	CPF("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<button hx-get=\"/updatemessages\" hx-target=\"#logmsgs\" hx-swap=\"outerHTML\">Update messages</button><br/><br/>");
 	CPF("\n</small>\n");
 	//if (dropped_temperatures != 0) {
 	//  CPF(",&nbsp;&nbsp;   Dropped: "); CP(dropped_temperatures);
@@ -523,9 +523,19 @@ static int countLinesInLogFile(int n) {
 	return linecnt;
 }
 
+static char scrollLogToBottom[] PROGMEM = R"=====(
+<script language="javascript">
+    function scrollLogToBottom() {
+        logTa = document.getElementById("logmsgs");
+        logTa.scrollTop = logTa.scrollHeight;
+    }
+    scrollLogToBottom();
+</script>
+)=====";
+
 int WebHandler::sendMessagesData(WiFiClient &client) {
 	CPNF("<textarea readonly id=\"logmsgs\" autocomplete=\"off\" name=\"textbox\" cols=\"120\" rows=\"11\">");		// yields 12 lines in box
-	int f0lines = countLinesInLogFile(0), f1lines = 0, lr = 0, lw = 0;
+	int f0lines = countLinesInLogFile(0), f1lines = 0, lr = 0, lw1 = 0, lw0 = 0;
 	//CPF("f0lines: "); CPN(f0lines);
 	File f;											// first count lines in log file 0 as f0lines
 	char b[120];									// then print up to 50 - f0lines from log file 1
@@ -536,7 +546,7 @@ int WebHandler::sendMessagesData(WiFiClient &client) {
 			size_t len = f.readBytesUntil('\n', b, 120);
 			b[len] = '\0';
 			if (++lr > f1lines - (50 - f0lines)) {
-				/*CP(lw); CPNF("  |  ");*/ CPN(b); lw++;
+				/*CP(lw); CPNF("  |  ");*/ CPN(b); lw1++;
 			}
 		}
 		f.close();
@@ -547,19 +557,21 @@ int WebHandler::sendMessagesData(WiFiClient &client) {
 		size_t len = f.readBytesUntil('\n', b, 120);
 		b[len] = '\0';
 		if (++lr > (f0lines - 50)) {
-			/*CP(lw); CPNF("  ^  ");*/ CPN(b); lw++;
+			/*CP(lw); CPNF("  ^  ");*/ CPN(b); lw0++;
 		}
 	}
 	f.close();
 	CPNF("</textarea>");
-	return lw;
+	client.printf_P(scrollLogToBottom);
+	MSGV("sent %d + %d log lines", lw1, lw0);
+	return lw1 + lw0;
 }
 
 void WebHandler::updateMessages() {
 	WiFiClient &client = sendHeaderToClient();
 	MSGV("updating messages in textarea");
 	int r = sendMessagesData(client);
-	MSGV("send %d log lines", r);
+	MSGV("sent %d log lines", r);
 }
 
 void WebHandler::syncBuffer() {
