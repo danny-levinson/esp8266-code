@@ -78,6 +78,10 @@ private:
 	void setTimeParameters();
 	void resetTimeParameters();
 
+	void sendMessagesInfo(WiFiClient &client);
+	int  sendMessagesData(WiFiClient &client);
+	void updateMessages();
+
 	void getTestButton();
 
 	void syncBuffer();

@@ -34,6 +34,7 @@ void WebHandler::registerAppRoutes(bool asStation) {
 	httpServer.on("/resettemperatureoffset", HTTP_GET, [this]() { this->resetTemperatureOffset(); });
 	httpServer.on("/settimeparameters", HTTP_GET, [this]() { this->setTimeParameters(); });
 	httpServer.on("/resettimeparameters", HTTP_GET, [this]() { this->resetTimeParameters(); });
+	httpServer.on("/updatemessages", HTTP_GET, [this]() { this->updateMessages(); });
 
 	httpServer.on("/sync", HTTP_GET, [this]() { this->syncBuffer(); });
 	httpServer.on("/listspiffstoclient", HTTP_GET, [this]() { this->listFilesToClient(); });	// obsolescent url
@@ -272,11 +273,6 @@ static char config_section_trailer[] PROGMEM = R"=====(
 )=====";
 
 
-//<form hx-get="/settimeparameters" hx-target="this" hx-swap="outerHTML settle:3s">
-//<style>#toast.htmx-settling { opacity: 100; } #toast { background: #E1F0DA; opacity: 20; transition: opacity 3s ease-out; }</style>
-//<span id="toxasts" hx-swap-oob="beforeend">
-//<span class="toxast" id="toxast" hx-on:load="setTimeout(() => this.remove(), 3000)">%s</span>
-//</span>
 
 static char timeInfoSection[] PROGMEM = R"=====(
 <style scoped="">#toast.htmx-settling { opacity: 100; } #toast { background: #E1F0DA; opacity: 0; transition: opacity 3s ease-out; }</style>
@@ -310,16 +306,6 @@ static char fadingTestCode[] PROGMEM = R"=====(
 <hr/>
 )=====";
 
-//<style scoped="">
-//#toast2.htmx-settling {
-//  opacity: 100;
-//}
-//#toast2 {
-//  background: #E1F0DA;
-//  opacity: 0;
-//  transition: opacity 3s ease-out;
-//}
-//</style>
 
 static char temperatureInfoSection[] PROGMEM = R"=====(
 <span hx-target="this" hx-swap="outerHTML">
@@ -328,7 +314,7 @@ Raw:&nbsp;%s&deg;C &nbsp;&nbsp;&nbsp;&nbsp; Offset temp:&nbsp;%s&deg;C
 <label for="calibbtn" title="Choose a temperature offset of +/- 10.0 degrees if the temperature reading needs to be calibrated to a standard">
 Temperature offset: %0.1f &nbsp;&nbsp;
 </label>
-<button hx-get="/changetemperatureoffset" class="btn primary" title="Click to change the temperature offset">Click To Change</button>
+<button hx-get="/changetemperatureoffset" class="btn" title="Click to change the temperature offset">Click To Change</button>
 </span>
 )=====";
 
@@ -346,7 +332,6 @@ Temperature offset: &nbsp;&nbsp;
 <button class="btn" hx-get="/resettemperatureoffset" title="Revert the temperature offset">Cancel</button>
 </form>
 )=====";
-
 
 void WebHandler::configSendPage() {
 	WiFiClient &client = sendHeaderToClient();
@@ -369,76 +354,8 @@ void WebHandler::configSendPage() {
 	client.printf_P(config_section_trailer);
 
 	client.printf_P(config_section_header, "Messages");
-	client.print(F("<br/>\n"));
-	long uptime = NTPtimeManager.getUptime();
-	if (uptime == 0) {
-		CPF("Up for: "); CP(millis());
-	} else {
-		char tmbuff[20];
-	    CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
-	}
-	CPF(",&nbsp;&nbsp; FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(initialFreeHeapSize);
-	CPF("<br/>\n");
-	CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
-	CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
-	CPF(",&nbsp;&nbsp;&nbsp;&nbsp;   signal strength: "); CP(WiFi.RSSI());
-	//CPNF("</h5>"); CPNF("<h4>");
-
-	// Note: tstore count & dropped temperatures are for when we do graphing
-	// CPF("Stored: "); CP(tstore.count()); CPF(", ");
-	CPF("<br/>\n");
-	CPF("Pending in store: "); CP(the_temperature_logger.getStore().availableInStore());
-	CPF("\n</small>\n");
-	//if (dropped_temperatures != 0) {
-	//  CPF(",&nbsp;&nbsp;   Dropped: "); CP(dropped_temperatures);
-	//}
-	//CPNF("</h5>");
-/*
-	  CPNF("<h3><table><tr>");
-	  CPNF("<td><form autocomplete="off" action=\"http:flushmessages.html\" title=\"Clear out log messages\" method=get><input type=submit value=\"Flush\"></form></td>");
-	  CPNF("<td><form autocomplete="off" action=\"http:synctostore.html\" title=\"Write out stored data to SPIFFS\" method=get><input type=submit value=\"Sync\"></form></td>");
-	  CPNF("<td><form autocomplete="off" action=\"http:listspiffs.html\" title=\"List SPIFFS files to log\" method=get><input type=submit value=\"List\"></form></td>");
-	  CPNF("<td><form autocomplete="off" action=\"http:fsdebug.html\" title=\"Open SPIFFS file get/put page\"method=get><input type=submit value=\"Files\"></form></td>");
-	  CPNF("<td><form autocomplete="off" action=\"http:togglefancontrol.html\" title=\"Enable/disable fan controller\"method=get><input type=submit value=\"Fan\"></form></td>");
-	  CPNF("<td><form autocomplete="off" action=\"http:togglefanstate.html\" title=\"Toggle fan on/off\"method=get><input type=submit value=\"Test\"></form></td>");
-	  CPNF("</td></tr></table></h3>");
-*/
-	//CPNF("<p>");
-
-	int f0lines = 0, f1lines = 0, lr = 0, lw = 0;
-	File f = open_message_log_file();
-	while (f.find('\n')) f0lines += 1;
-	f.close();
-	//CPF("f0lines: "); CPN(f0lines);
-	CPNF("<textarea autocomplete=\"off\" name=\"textbox\" cols=\"120\" rows=\"11\">");		// yields 12 lines in box
-	char b[120];
-	if (f0lines < 50) {
-		f = open_message_log_file(1);
-		while (f.find('\n')) f1lines += 1;
-		f.close();
-		f = open_message_log_file(1);
-		while (f.available() > 0) {
-			size_t len = f.readBytesUntil('\n', b, 120);
-			b[len] = '\0';
-			lr += 1;
-			if (lr > f1lines - (50 - f0lines)) {
-				/*CP(lw); CPNF("  |  ");*/ CPN(b); lw++;
-			}
-		}
-	}
-	f.close();
-	f = open_message_log_file();
-	lr = 0;
-	while (f.available() > 0) {
-		size_t len = f.readBytesUntil('\n', b, 120);
-		b[len] = '\0';
-		lr += 1;
-		if (lr > (f0lines - 50)) {
-			/*CP(lw); CPNF("  ^  ");*/ CPN(b); lw++;
-		}
-	}
-	f.close();
-	CPNF("</textarea>");
+	sendMessagesInfo(client);
+	int lw = sendMessagesData(client);
 	CPNF("</body>");
 	CPNF("</html>");
 	//CPNF("lines written: "); CP(lw);
@@ -553,6 +470,97 @@ void WebHandler::setTemperatureOffset() {
 	sendTemperatureInfo(client, temperatureInfoSection);
 }
 
+
+void WebHandler::sendMessagesInfo(WiFiClient &client) {
+	client.print(F("<br/>\n"));
+	// line 1
+	long uptime = NTPtimeManager.getUptime();
+	if (uptime == 0) {
+		CPF("Up for: "); CP(millis());
+	} else {
+		char tmbuff[20];
+	    CPF("Up since: "); CP(NTPtimeManager.getTimeString(20, tmbuff, uptime)); CPF(" UTC ["); CP(millis()); CPF(" ms]");
+	}
+	CPF(",&nbsp;&nbsp; FreeHeap: "); CP(ESP.getFreeHeap()); CPF("/"); CP(initialFreeHeapSize);
+	CPF("<br/>\n");
+	// line 2
+	CPF("Connected as: &nbsp;&nbsp;"); CP(WiFi.hostname().c_str());
+	CPF("&nbsp;&nbsp; to: &nbsp;&nbsp;"); CP(WiFi.SSID()); CPF("&nbsp;&nbsp;at: &nbsp;&nbsp;"); CP(WiFi.localIP());
+	CPF(",&nbsp;&nbsp;&nbsp;&nbsp;   signal strength: "); CP(WiFi.RSSI());
+	//CPNF("</h5>"); CPNF("<h4>");
+
+	// Note: tstore count & dropped temperatures are for when we do graphing
+	// CPF("Stored: "); CP(tstore.count()); CPF(", ");
+	CPF("<br/>\n");
+	// line 3
+	CPF("Pending in store: "); CP(the_temperature_logger.getStore().availableInStore());
+	CPF("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<button hx-get=\"/updatemessages\" hx-target=\"#logmsgs\" hx-swap=\"outerHTML\">Update messages</button><br/>");
+	CPF("\n</small>\n");
+	//if (dropped_temperatures != 0) {
+	//  CPF(",&nbsp;&nbsp;   Dropped: "); CP(dropped_temperatures);
+	//}
+	//CPNF("</h5>");
+/*	- buttons section
+	  CPNF("<h3><table><tr>");
+	  CPNF("<td><form autocomplete="off" action=\"http:flushmessages.html\" title=\"Clear out log messages\" method=get><input type=submit value=\"Flush\"></form></td>");
+	  CPNF("<td><form autocomplete="off" action=\"http:synctostore.html\" title=\"Write out stored data to SPIFFS\" method=get><input type=submit value=\"Sync\"></form></td>");
+	  CPNF("<td><form autocomplete="off" action=\"http:listspiffs.html\" title=\"List SPIFFS files to log\" method=get><input type=submit value=\"List\"></form></td>");
+	  CPNF("<td><form autocomplete="off" action=\"http:fsdebug.html\" title=\"Open SPIFFS file get/put page\"method=get><input type=submit value=\"Files\"></form></td>");
+	  CPNF("<td><form autocomplete="off" action=\"http:togglefancontrol.html\" title=\"Enable/disable fan controller\"method=get><input type=submit value=\"Fan\"></form></td>");
+	  CPNF("<td><form autocomplete="off" action=\"http:togglefanstate.html\" title=\"Toggle fan on/off\"method=get><input type=submit value=\"Test\"></form></td>");
+	  CPNF("</td></tr></table></h3>");
+*/
+	//CPNF("<p>");
+}
+
+// print to client up to 50 lines, first from log file 1 & then log file 0
+
+static int countLinesInLogFile(int n) {
+	int linecnt = 0;
+	File f = open_message_log_file();
+	while (f.find('\n')) linecnt += 1;
+	f.close();
+	return linecnt;
+}
+
+int WebHandler::sendMessagesData(WiFiClient &client) {
+	CPNF("<textarea readonly id=\"logmsgs\" autocomplete=\"off\" name=\"textbox\" cols=\"120\" rows=\"11\">");		// yields 12 lines in box
+	int f0lines = countLinesInLogFile(0), f1lines = 0, lr = 0, lw = 0;
+	//CPF("f0lines: "); CPN(f0lines);
+	File f;											// first count lines in log file 0 as f0lines
+	char b[120];									// then print up to 50 - f0lines from log file 1
+	if (f0lines < 50) {
+		f1lines = countLinesInLogFile(1);
+		f = open_message_log_file(1);
+		while (f.available() > 0) {
+			size_t len = f.readBytesUntil('\n', b, 120);
+			b[len] = '\0';
+			if (++lr > f1lines - (50 - f0lines)) {
+				/*CP(lw); CPNF("  |  ");*/ CPN(b); lw++;
+			}
+		}
+		f.close();
+	}
+	f = open_message_log_file();					// finally print the balance (up to 50 lines) from log file 0
+	lr = 0;
+	while (f.available() > 0) {
+		size_t len = f.readBytesUntil('\n', b, 120);
+		b[len] = '\0';
+		if (++lr > (f0lines - 50)) {
+			/*CP(lw); CPNF("  ^  ");*/ CPN(b); lw++;
+		}
+	}
+	f.close();
+	CPNF("</textarea>");
+	return lw;
+}
+
+void WebHandler::updateMessages() {
+	WiFiClient &client = sendHeaderToClient();
+	MSGV("updating messages in textarea");
+	int r = sendMessagesData(client);
+	MSGV("send %d log lines", r);
+}
 
 void WebHandler::syncBuffer() {
 	the_temperature_logger.getStore().flush();
