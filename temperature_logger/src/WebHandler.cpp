@@ -494,7 +494,7 @@ void WebHandler::sendMessagesInfo(WiFiClient &client) {
 	CPF("<br/>\n");
 	// line 3
 	CPF("Pending in store: "); CP(the_temperature_logger.getStore().availableInStore());
-	CPF("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<button hx-get=\"/updatemessages\" hx-target=\"#logmsgs\" hx-swap=\"outerHTML\">Update messages</button><br/><br/>");
+	CPF("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<button hx-get=\"/updatemessages\" hx-target=\"#logmsgs\" hx-swap=\"outerHTML\">Update messages</button><div style=\"line-height: 0.70;\"><br/></div>");
 	CPF("\n</small>\n");
 	//if (dropped_temperatures != 0) {
 	//  CPF(",&nbsp;&nbsp;   Dropped: "); CP(dropped_temperatures);
@@ -513,39 +513,47 @@ void WebHandler::sendMessagesInfo(WiFiClient &client) {
 	//CPNF("<p>");
 }
 
-// print to client up to 50 lines, first from log file 1 & then log file 0
+// print to client up to MAXLOGLINESSHOWN lines, first from log file 1 & then log file 0
 
 static int countLinesInLogFile(int n) {
 	int linecnt = 0;
-	File f = open_message_log_file();
+	File f = open_message_log_file(n);
 	while (f.find('\n')) linecnt += 1;
 	f.close();
 	return linecnt;
 }
+
+// note: the offset of 18 was determined by experiment using firefox and may vary between browsers
 
 static char scrollLogToBottom[] PROGMEM = R"=====(
 <script language="javascript">
     function scrollLogToBottom() {
         logTa = document.getElementById("logmsgs");
         logTa.scrollTop = logTa.scrollHeight;
+		logTa.scrollTop = logTa.scrollTop - 18;
     }
     scrollLogToBottom();
 </script>
 )=====";
 
+#define MAXLOGLINELEN 160
+#define MAXLOGLINESSHOWN 40
+
 int WebHandler::sendMessagesData(WiFiClient &client) {
-	CPNF("<textarea readonly id=\"logmsgs\" autocomplete=\"off\" name=\"textbox\" cols=\"120\" rows=\"11\">");		// yields 12 lines in box
+	CPNF("<textarea readonly id=\"logmsgs\" autocomplete=\"off\" name=\"textbox\" cols=\"120\" rows=\"11.5\">");		// yields 12 lines in box
 	int f0lines = countLinesInLogFile(0), f1lines = 0, lr = 0, lw1 = 0, lw0 = 0;
 	//CPF("f0lines: "); CPN(f0lines);
 	File f;											// first count lines in log file 0 as f0lines
-	char b[120];									// then print up to 50 - f0lines from log file 1
-	if (f0lines < 50) {
+	char b[MAXLOGLINELEN+1];						// then print up to 50 - f0lines from log file 1
+	if (f0lines < MAXLOGLINESSHOWN) {
 		f1lines = countLinesInLogFile(1);
 		f = open_message_log_file(1);
 		while (f.available() > 0) {
-			size_t len = f.readBytesUntil('\n', b, 120);
+			size_t len = f.readBytesUntil('\n', b, MAXLOGLINELEN);
+			if (len == 0) break;
 			b[len] = '\0';
-			if (++lr > f1lines - (50 - f0lines)) {
+			if (b[len-1] == '\r') b[len-1] = '\0';
+			if (lr++ >= f1lines - (MAXLOGLINESSHOWN - f0lines)) {
 				/*CP(lw); CPNF("  |  ");*/ CPN(b); lw1++;
 			}
 		}
@@ -554,16 +562,18 @@ int WebHandler::sendMessagesData(WiFiClient &client) {
 	f = open_message_log_file();					// finally print the balance (up to 50 lines) from log file 0
 	lr = 0;
 	while (f.available() > 0) {
-		size_t len = f.readBytesUntil('\n', b, 120);
+		size_t len = f.readBytesUntil('\n', b, MAXLOGLINELEN);
+		if (len == 0) break;
 		b[len] = '\0';
-		if (++lr > (f0lines - 50)) {
+		if (b[len-1] == '\r') b[len-1] = '\0';
+		if (lr++ >= (f0lines - MAXLOGLINESSHOWN)) {
 			/*CP(lw); CPNF("  ^  ");*/ CPN(b); lw0++;
 		}
 	}
 	f.close();
 	CPNF("</textarea>");
 	client.printf_P(scrollLogToBottom);
-	MSGV("sent %d + %d log lines", lw1, lw0);
+	MSGV("sent %d + %d log lines from f1: %d, f0: %d (%d)", lw1, lw0, f1lines, f0lines, countLinesInLogFile(0));
 	return lw1 + lw0;
 }
 
