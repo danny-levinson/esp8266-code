@@ -18,10 +18,15 @@ public:
 	void loopSwitch();
 
 	void registerSwitchRoutes(ESP8266WebServer &httpServer);
-	void configSendSwitchSection(WiFiClient &client);
 	bool restoreSwitchData();
 	bool saveSwitchData();
 
+	void configSendSwitchSection(WiFiClient &client, const char *toast);
+	void setSwitchParameters();
+	void resetSwitchParameters();
+	bool setSwitchParametersFromServer();
+	void toggleSwitchEnable();
+	void toggleSwitchAutomatic();
 
 private:
 	DataSaver *switchConfigDataSaver;
@@ -51,8 +56,6 @@ private:
 	bool isSwitchOn();
 
 	void maybeActuateSwitch();				// called in loop to handle automatic action
-
-	void handleSwitchSetup();				// form action handler
 };
 
 extern class SwitchController *the_switch_controller;	// defined in temp_logger_main.cpp

@@ -90,9 +90,16 @@ bool WebHandler::saveAppData() {
 }
 
 bool WebHandler::restoreAppData() {
-	if (! the_switch_controller->restoreSwitchData()) return false;
-	if (! appDataSaver->read()) return false;
+	if (! the_switch_controller->restoreSwitchData()) {
+		MSGV("Switch controller data restore failed");
+		return false;
+	}
+	if (! appDataSaver->read()) {
+		MSGV("appDataSaver read failed");
+		return false;
+	}
 	g_calib = appData.calib;
+	MSGV("Temperature logger app data restored: calib=%d", g_calib);
 	return true;
 }
 
@@ -276,7 +283,7 @@ static char config_section_trailer[] PROGMEM = R"=====(
 
 static char timeInfoSection[] PROGMEM = R"=====(
 <style scoped="">#toast.htmx-settling { opacity: 100; } #toast { background: #E1F0DA; opacity: 0; transition: opacity 3s ease-out; }</style>
-<form style="display: inline;" hx-get="/settimeparameters" hx-target="this" hx-swap="outerHTML settle:3s">
+<form style="display: inline;" hx-get="/settimeparameters" hx-target="this" hx-swap="outerHTML settle:1s">
 Universal:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local:&nbsp;%s
 <br/>
 <label for="tzone" title="Specify the timezone in hours ahead of GMT">Time zone:
@@ -288,16 +295,16 @@ Universal:&nbsp;%s &nbsp;&nbsp;&nbsp;&nbsp; Local:&nbsp;%s
 <label for="offset" title="Choose an offset of up to 10 minutes if your preferred personal time is not exactly standard">Time offset:
 <input type="number"  value="%d" id="offset" name="offset" min="-10" max="10" size="4"></label>
 &nbsp;&nbsp;&nbsp;&nbsp;
-<button class="btn" type="submit" title="Set the specified time parameters">Submit</button>
+<button class="btn" type="submit" title="Set the specified time parameters">Save local time changes</button>
 <button class="btn" hx-get="/resettimeparameters" title="Revert the time parameters">Cancel</button>
 &nbsp;
 </form>
 <span id="toast" hx-swap-oob="true"> %s </span>
 )=====";
 
-
+#if 0
 static char fadingTestCode[] PROGMEM = R"=====(
-<form id="ft-test" hx-get="/testbutton" hx-swap="innerHTML settle:3s" hx-target="#toast2">
+<form id="ft-test" hx-get="/testbutton" hx-swap="innerHTML settle:2s" hx-target="#toast2">
 <input type="submit" value="see fading text" class="btn primary">
     <output id="toast2"></output>
 </form>
@@ -305,7 +312,7 @@ static char fadingTestCode[] PROGMEM = R"=====(
 <output id="toast2"></output>
 <hr/>
 )=====";
-
+#endif
 
 static char temperatureInfoSection[] PROGMEM = R"=====(
 <span hx-target="this" hx-swap="outerHTML">
@@ -350,7 +357,7 @@ void WebHandler::configSendPage() {
 	client.printf_P(config_section_trailer);
 
 	client.printf_P(config_section_header, "Switch control");
-	the_switch_controller->configSendSwitchSection(client);			// <h3>Fan control (tbd)</h3><hr/>
+	the_switch_controller->configSendSwitchSection(client, "init");
 	client.printf_P(config_section_trailer);
 
 	client.printf_P(config_section_header, "Messages");
@@ -398,6 +405,7 @@ void WebHandler::getTestButton() {
 	client.printf("\nfading test text\n");
 }
 
+#if 0
 void WebHandler::configSaveData() {
 	return;
 	MSGV("saving configuration data");
@@ -435,7 +443,7 @@ void WebHandler::configSaveData() {
 	//config_data_save_to_filesystem();
 	//send_reload_reply("/config.html");
 }
-
+#endif
 
 void WebHandler::sendTemperatureInfo(WiFiClient &client, char infodata[]) {
 	char tmpbufraw[10], tmpbufcal[10];
@@ -472,7 +480,6 @@ void WebHandler::setTemperatureOffset() {
 
 
 void WebHandler::sendMessagesInfo(WiFiClient &client) {
-	client.print(F("<br/>\n"));
 	// line 1
 	long uptime = NTPtimeManager.getUptime();
 	if (uptime == 0) {
@@ -597,7 +604,7 @@ void WebHandler::listFilesToClient() {
 	WiFiClient client = httpServer.client();
 	client.println("HTTP/1.1 200 OK");
 	client.println("Content-Type: text/plain");
-	client.println("Connection: close");
+	//client.println("Connection: close");
 	client.println();
 
 	struct FSInfo filesysinfo;

@@ -17,7 +17,7 @@
 #include "temperature_logger.h"
 #include "MsgLogHandler.h"
 
-char g_switchname[MAXSWITCHNAMELEN] = "Dishwasher fan";						// NEED TO MAKE THESE NON VOLATILE
+char g_switchname[MAXSWITCHNAMELEN] = "Dishwasher fanX";						// NEED TO MAKE THESE NON VOLATILE
 int g_switchenabled = 1, g_switchauto = 0;
 int g_switchon = 20, g_switchoff = 60;						// in tenths of a degree
 
@@ -29,6 +29,8 @@ SwitchController::SwitchController(class WebHandlerBase *wbh) : msgcountin(0), m
 }
 
 bool SwitchController::saveSwitchData() {
+	MSGV("Saving switch data: enabled = %d, auto = %d, on = %d, off = %d, name = '%s'",
+			g_switchenabled, g_switchauto, g_switchon, g_switchoff, g_switchname);
 	switchConfigData.switchauto = g_switchauto;
 	switchConfigData.switchenabled = g_switchenabled;
 	switchConfigData.switchon = g_switchon;
@@ -38,19 +40,60 @@ bool SwitchController::saveSwitchData() {
 }
 
 bool SwitchController::restoreSwitchData() {
-	if (! switchConfigDataSaver->read()) return false;
+	if (! switchConfigDataSaver->read()) {
+		MSGV("switchConfigDataSaver read failed");
+		return false;
+	}
 	g_switchauto = switchConfigData.switchauto;
 	g_switchenabled = switchConfigData.switchenabled;
 	g_switchon = switchConfigData.switchon;
 	g_switchoff = switchConfigData.switchoff;
 	strcpy(g_switchname, switchConfigData.switchname);	// safe if config file init to zero & max size not changed
+	MSGV("Switch data restored: enabled=%d, auto=%d, on=%d, off=%d, name='%s'",
+			g_switchenabled, g_switchauto, g_switchon, g_switchoff, g_switchname);
 	return true;
 }
 
 // the only routes to register for the switch controller are for the configuration buttons
 
 void SwitchController::registerSwitchRoutes(ESP8266WebServer &httpServer) {
-	httpServer.on("/switchsetup", HTTP_GET, [this]() { this->handleSwitchSetup(); });
+	httpServer.on("/setswitchparameters", HTTP_GET, [this]() { this->setSwitchParameters(); });
+	httpServer.on("/resetswitchparameters", HTTP_GET, [this]() { this->resetSwitchParameters(); });
+	httpServer.on("/toggleswenable", HTTP_GET, [this]() { this->toggleSwitchEnable(); });
+	httpServer.on("/toggleswauto", HTTP_GET, [this]() { this->toggleSwitchAutomatic(); });
+}
+
+bool SwitchController::setSwitchParametersFromServer() {
+	ESP8266WebServer &httpServer = webhandler->getServer();
+	MSGV("switch params from httpserver: hasname=%d, name=%s", httpServer.hasArg("swname"), httpServer.hasArg("swname") ? httpServer.arg("swname").c_str() : "XX");
+	bool good = true;
+	// if switch is disabled these params will not be sent, so use old values
+	if (httpServer.hasArg("thon")) g_switchon = int(10 * atof(httpServer.arg("thon").c_str()));
+	if (httpServer.hasArg("thoff")) g_switchoff = int (10 * atof(httpServer.arg("thoff").c_str()));
+	if (httpServer.hasArg("swname")) strncpy(g_switchname, httpServer.arg("swname").c_str(), MAXSWITCHNAMELEN);
+	g_switchenabled = httpServer.hasArg("swenable") ? 1 : 0;
+	g_switchauto = httpServer.hasArg("swauto") ? 1 : 0;
+	if (good) good = saveSwitchData();
+	return good;
+}
+
+void SwitchController::setSwitchParameters() {
+	WiFiClient &client = webhandler->sendHeaderToClient();
+	MSGV("sending configuration switch info after setting");
+	bool good = setSwitchParametersFromServer();				// also saves common globals?
+	if (good) {
+		MSGV("*set* switch parameters set successfully");
+	} else {
+		MSGE("*set* failed setting switch parameters");
+	}
+	configSendSwitchSection(client, good ? "setting parameters successful" : "setting parameters failed");
+}
+
+void SwitchController::resetSwitchParameters() {
+	WiFiClient &client = webhandler->sendHeaderToClient();
+	MSGV("*reset* cancelled changing & reverted configuration switch info data");
+	configSendSwitchSection(client, "parameters reset");
+	//sendTimeInfo(client, timeInfoSection, "parameters reset");
 }
 
 
@@ -58,57 +101,49 @@ void SwitchController::registerSwitchRoutes(ESP8266WebServer &httpServer) {
 //		changes in parameters (on temperature, off temperature, device name)
 //		checkbox changes (enable, automatic)
 //		button pushes (save data, test switch)
-
 static const char *save_button_text = "Save switch configuration changes";
 
-void SwitchController::handleSwitchSetup() {
-	ESP8266WebServer &httpServer = webhandler->getServer();
-	if (! httpServer.hasArg("subaction")) return;							// or checkbox changed?
-	String action = httpServer.arg("subaction");
-
-	if (action.equals(save_button_text)) {
-		/*
-		 * extract thon, thoff, name
-		 * assign to g_ variables
-		 * save to config file (webhandler->configSaveData())
-		 * return
-		 */
-	}
-	if (action.equals("Switch device on")) {
-
-	}
-	if (action.equals("Switch device off")) {
-
-	}
-}
-
-
 static const char switch_section_format[] PROGMEM = R"=====(
-<span style="line-height:1.5">
-<br/>
-<form method=GET action="switchsetup">
-<label for="swenable" title="Configure an external switch (such as a WEMO, connected, for example, to a heater) to operate according to temperature limits. If switch control is disabled, the logger will not attempt to find a switch.">
+<style scoped="">#swtoast.htmx-settling { opacity: 100; } #swtoast { background: #E1F0DA; opacity: 0; transition: opacity 3s ease-out; }</style>
+<span id="switchdata">
+<form style="display: inline;" hx-get="/setswitchparameters" hx-target="#switchdata" hx-swap="innerHTML settle:1s">
 <label for="swname" title="Name given to the switch, as known to the switching device">Name:&nbsp;
-<input type="text" id="swname" name="swname" value="%s" length="20"></label>
-&nbsp;&nbsp;&nbsp;&nbsp;Control is:&nbsp;&nbsp; enabled
-<input type="checkbox" id="swenable" name="swenable" %s onclick="enableDisable(this.checked);"></label>
+<input type="text" id="swname" name="swname" value="%s" %s length="20"></label>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<button class="btn" type="submit" title="Save changes to the switch settings (name & thresholds).">%s</button>
+<button class="btn" hx-get="/resetswitchparameters" title="Revert the switch settings">Cancel</button>
+<br/>
+<label for="thon" title="Threshold for switching the device on if temperature read is lower">On threshold
+<input type="number" id="thon" name="thon" value="%0.1f" step="0.1" size="6" %s></label>
+&nbsp;&nbsp;&nbsp;
+<label for="thoff" title="Threshold for switching the device off if temperature read is higher">Off threshold
+<input type="number" id="thoff" name="thoff" value="%0.1f" step="0.1" size="6" %s></label>
+&nbsp;&nbsp;&nbsp;&nbsp;
+<label for="swenable" title="Configure an external switch (such as a WEMO, connected, for example, to a heater) to operate according to temperature limits. If switch control is disabled, the logger will not attempt to find a switch.">
+Control is:&nbsp;&nbsp; enabled
+<input type="checkbox" id="swenable" name="swenable" %s hx-get="/toggleswenable" hx-target="#switchdata" hx-swap="innerHTML settle:1s"></label>
 &nbsp;&nbsp;&nbsp;
 <label for="swauto" title="Make the switch respond to the set temperature limits. Switch control can be set to manual for testing. In that case, the switch, when found, can be controlled by a button below.">
 automatic
-<input type="checkbox" id="swauto" name="swauto" %s onclick="showButton(this.checked);"></label>
-<br/>
-<label for="thon" title="Threshold for switching the device on if temperature read is lower">On threshold
-<input type="number" id="thon" name="thon" value="%0.1f" step="0.1" size="6"></label>
-&nbsp;&nbsp;&nbsp;&nbsp;
-<label for="thoff" title="Threshold for switching the device off if temperature read is higher">Off threshold
-<input type="number" id="thoff" name="thoff" value="%0.1f" step="0.1" size="6"></label>
-&nbsp;&nbsp;&nbsp;
-<input type="submit" id="swsubmit" name="subaction" value="%s" style="font-size:smaller" title="Save changes to the switch settings.">
+<input type="checkbox" id="swauto" name="swauto" %s></label>
+</form>
 <br/>
 %s
-&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;
 )=====";
 
+static char switch_section_part2[] PROGMEM = R"=====(
+&nbsp;&nbsp;&nbsp;
+<input class="button" id="swswitch" type="submit" title="Turn the device on or off for testing purposes" name="subaction" value="Switch device %s" />
+&nbsp;&nbsp;&nbsp;&nbsp;
+</span>
+<span id="swtoast" hx-swap-oob="true"> %s </span>
+)=====";
+
+//<input type="checkbox" id="swenable" name="swenable" %s onclick="enableDisable(this.checked);"></label>
+//<input type="checkbox" id="swauto" name="swauto" %s onclick="showButton(this.checked);"></label>
+
+#if 0
 static const char switch_section_script[] PROGMEM = R"=====(
 <script>
 function enableDisable(bEnable) {
@@ -129,20 +164,23 @@ enableDisable(document.getElementById("swenable").checked);
 showButton(document.getElementById("swauto").checked);
 </script>
 )=====";
+#endif
 
-void SwitchController::configSendSwitchSection(WiFiClient &client) {
+void SwitchController::configSendSwitchSection(WiFiClient &client, const char *toast) {
 	MSGV("sending switch configuration section");
 	String swaddr = switchAddress();
-	client.printf_P(switch_section_script);
+	//client.printf_P(switch_section_script);
+	const char *enablestate = g_switchenabled ? "enabled" : "disabled";
 	client.printf_P(switch_section_format,
-			g_switchname,
-			g_switchenabled ? "checked" : "",
-			"checked",
-			g_switchon/10.0,
-			g_switchoff/10.0,
+			g_switchname, enablestate,
 			save_button_text,
+			g_switchon/10.0, enablestate,
+			g_switchoff/10.0, enablestate,
+			g_switchenabled ? "checked" : "xxx",
+			g_switchauto ? "checked" : "yyy",
 			swaddr != "" ? "Switch is online.&nbsp;" : "Switch not (yet) found");
-	MSGV("config has enable: %d, name: %s, on: %d, off: %d", g_switchenabled, g_switchname, g_switchon, g_switchoff);
+	MSGV("config has enable: %d, auto: %d, on: %d, off: %d, name: '%s'",
+			g_switchenabled, g_switchauto, g_switchon, g_switchoff, g_switchname);
 
 	int r = getCurrentSwitchState();
 	if (swaddr != "") {
@@ -150,17 +188,23 @@ void SwitchController::configSendSwitchSection(WiFiClient &client) {
 		client.printf("'<i>%s</i>'&nbsp; is at %s.<br/>", g_switchname, swaddr.c_str());
 		client.printf("Switch state is %s.&nbsp;&nbsp;", (r == 0) ? "off" : (r == 1) ? "on" : "unknown");
 	}
-	static char s[] PROGMEM = "\n&nbsp;&nbsp;&nbsp;<input class=\"button\" id=\"swswitch\" type=\"submit\" title=\"Turn the device on or off for testing purposes\" name=\"subaction\" value=\"Switch device %s\" />";
-	if (r == 0) {
-		client.printf_P(s, "on");
-	} else if (r == 1) {
-		client.printf_P(s, "off");
-	} else {
-		client.printf_P(s, "is undefined");
-	}
-	client.printf("</form></span>\n");
-	client.printf_P(switch_section_actions);
+	client.printf_P(switch_section_part2, r == 0 ? "on" : r == 1 ? "off" : "is undefined", toast);
+
+	//client.printf_P(switch_section_actions);
 }
+
+void SwitchController::toggleSwitchEnable() {
+	WiFiClient &client = webhandler->sendHeaderToClient();
+	MSGV("sending configuration switch info after setting");
+	g_switchenabled = ! g_switchenabled;
+	bool good = saveSwitchData();
+	configSendSwitchSection(client, g_switchenabled ? "enabled" : "disabled");
+}
+
+void SwitchController::toggleSwitchAutomatic() {
+
+}
+
 
 //========================== switch control (find & identify switch) ====================================
 

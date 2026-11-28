@@ -67,7 +67,7 @@ private:
 
 	void temperaturesSendPage();
 	void configSendPage();
-	void configSaveData();
+	//void configSaveData();
 
 	void sendTemperatureInfo(WiFiClient &client, char infodata[]);
 	void changeTemperatureOffset();
