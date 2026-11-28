@@ -9,6 +9,7 @@
 
 #include "DataSaver.h"
 #include "SerialDebugHelper.h"
+#include "MsgLogHandler.h"
 
 int cg_tzone = 0, cg_dst = 0, cg_offset = 0;
 
@@ -30,6 +31,7 @@ bool CommonGlobals::restore() {
 	cg_tzone = cglobals.tzone;
 	cg_dst = cglobals.dst;
 	cg_offset = cglobals.offset;
+	MSGV("Common globals restored: tzone=%d, dst=%d, offset=%d", cg_tzone, cg_dst, cg_offset);
 	return true;
 }
 
@@ -76,7 +78,7 @@ bool CommonGlobals::restoreDataFromFile() {
     }
     data_was_initialised = true;
     common_globals.restore();			// override values of time modifiers from common repository
-    SPRNTF(1, "restored data from file, offset %d, tzone: %d, dst: %d\n", cg_offset, cg_tzone, cg_dst); // @suppress("Method cannot be resolved")
+    SPRNTF(1, "Restored data from file: tzone = %d, dst = %d, offset = %d\n", cg_tzone, cg_dst, cg_offset); // @suppress("Method cannot be resolved")
    	return true;
 }
 
