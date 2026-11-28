@@ -21,6 +21,7 @@
 #include "WebHandlerBase.h"
 
 #include "SerialDebugHelper.h"
+#include "MsgLogHandler.h"
 #include "WebSocketBase.h"
 
 static const char *baseVersion = "1.0";		// represents base part of version for entire common suite
@@ -60,8 +61,8 @@ void WebHandlerBase::registerCommonRoutes(bool as_station) {
 	}
 	if (as_station) {
 		MSG("Getting data from file system & starting web sockets");
-		restoreLibraryData();							// tuning data
-		restoreAppData();
+		//restoreLibraryData();							// tuning data, restored already in setupWebhandling
+		//restoreAppData();								// e.g. calibrations
 		if (webSocketHandler) webSocketHandler->setupWebsocket();
 	}
 }
@@ -322,7 +323,7 @@ WiFiClient &WebHandlerBase::sendHeaderToClient(bool html, char *status) {
 	CPN(status);
 	CPF("Content-Type: text/");
 	CPN(html ? "html" : "plain");
-	CPNF("Connection: close");
+	//CPNF("Connection: close");
 	CPN();
 	return client;
 }
@@ -540,6 +541,7 @@ bool WebHandlerBase::saveLibraryData() {
 bool WebHandlerBase::restoreLibraryData() {
 	bool r = libraryDataSaver->read();
 	if (r) set_delay_time(libraryData.dt);
+	MSGV("Library data restored, delay time=%d", libraryData.dt);
 	return r;
 }
 
@@ -561,8 +563,13 @@ void WebHandlerBase::setSocketHandler(WebSocketBase *sockethandler) {
 }
 
 void WebHandlerBase::setupWebhandling(bool as_station) {
-	common_globals.restore();
-	restoreAppData();
+	static bool data_restored = false;
+	if (! data_restored) {
+		data_restored = true;
+		common_globals.restore();
+		restoreLibraryData();
+		restoreAppData();
+	}
 	if (as_station) NTPtimeManager.begin();
 	registerCommonRoutes(as_station);
 	static bool http_is_running = false;
